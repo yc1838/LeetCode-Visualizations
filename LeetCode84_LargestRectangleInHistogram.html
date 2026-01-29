@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>单调栈：杀戮时刻 (修复版)</title>
+    <title>单调栈：杀戮时刻 / Monotonic Massacre</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
@@ -74,7 +74,7 @@
                     MONOTONIC MASSACRE
                 </h1>
                 <p class="text-gray-400 mt-2 text-sm">
-                    <span class="text-red-500 font-bold">规则：</span> 比我高的都得死 (修复版)
+                    <span class="text-red-500 font-bold">规则 / Rule:</span> 比我高的都得死 / Taller ones must die
                 </p>
             </div>
             
@@ -95,7 +95,7 @@
         <div class="glass-card rounded-xl p-4">
             <div class="flex items-center gap-2 mb-3">
                 <i data-lucide="skull" class="w-5 h-5 text-gray-400"></i>
-                <span class="text-sm font-bold uppercase tracking-wider text-gray-400">存活者名单 (Stack Indices)</span>
+                <span class="text-sm font-bold uppercase tracking-wider text-gray-400">存活者名单 / Survivors (Stack Indices)</span>
             </div>
             <div id="stackContainer" class="flex items-center gap-3 overflow-x-auto pb-2 min-h-[80px]">
                 <!-- Stack items injected here -->
@@ -133,9 +133,9 @@
                         <i data-lucide="mic" class="w-6 h-6"></i>
                     </div>
                     <div class="flex-1">
-                        <h3 class="text-xs font-bold uppercase tracking-wider text-red-400 mb-2">战场解说</h3>
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-red-400 mb-2">战场解说 / Battle Log</h3>
                         <p id="explanationText" class="text-lg leading-relaxed text-gray-200 font-bold">
-                            比赛即将开始...
+                            比赛即将开始... / Game starting...
                         </p>
                     </div>
                 </div>
@@ -160,7 +160,7 @@
                 <!-- Max Area Tombstone -->
                 <div class="glass-card rounded-xl p-8 text-center relative overflow-hidden border-t-4 border-t-gray-500">
                     <div class="absolute top-2 left-1/2 -translate-x-1/2 text-gray-600 text-6xl opacity-20">🪦</div>
-                    <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500 mb-4 relative z-10">记录 (Max Area)</h3>
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500 mb-4 relative z-10">记录 / Record (Max Area)</h3>
                     <div id="maxAreaDisplay" class="text-7xl font-black text-red-500 drop-shadow-[0_0_8px_rgba(255,0,0,0.8)] relative z-10 font-mono">
                         0
                     </div>
@@ -189,7 +189,10 @@
                 index: -1,
                 stack: [...stack],
                 maxArea: 0,
-                description: "游戏开始。我们在栈底放了一个 '哨兵' (-1)。它是不死之身，永远守在最左边。",
+                description: `
+                    <div>游戏开始。我们在栈底放了一个 '哨兵' (-1)。它是不死之身，永远守在最左边。</div>
+                    <div class="text-sm opacity-60 mt-1 font-normal">Game Start. A 'Sentinel' (-1) is placed at the bottom. It is immortal and guards the left boundary.</div>
+                `,
                 popped: null,
                 highlightIdx: null,
                 role: 'init'
@@ -208,9 +211,10 @@
                         index: i,
                         stack: [...stack],
                         maxArea: maxArea,
-                        description: `<span class="text-red-400 font-bold">处决开始！</span> 
-                        <br> 处决者 ${i} (高度 ${h}) 拿着斧头走来了。
-                        <br> 幸存者 ${topIdx} (高度 ${topH}) 挡了路，<span class="text-red-500 font-bold">必须死！</span>`,
+                        description: `
+                            <div><span class="text-red-400 font-bold">处决开始！</span> 处决者 ${i} (高度 ${h}) 拿着斧头走来了。幸存者 ${topIdx} (高度 ${topH}) 挡了路，<span class="text-red-500 font-bold">必须死！</span></div>
+                            <div class="text-sm opacity-60 mt-1 font-normal">Execution Start! Executioner ${i} (H:${h}) approaches. Survivor ${topIdx} (H:${topH}) is in the way. MUST DIE!</div>
+                        `,
                         popped: null,
                         highlightIdx: i,
                         compareIdx: topIdx,
@@ -229,9 +233,10 @@
                         index: i,
                         stack: [...stack],
                         maxArea: maxArea,
-                        description: `<span class="text-gray-400">💀 处决完毕。</span> 受害者: <strong>${topIdx}</strong>
-                        <br> 尸体宽度: ${i} (右) - ${leftBoundary} (左) - 1 = <strong>${width}</strong>
-                        <br> 遗产面积: <strong>${area}</strong>`,
+                        description: `
+                            <div><span class="text-gray-400">💀 处决完毕。</span> 受害者: <strong>${topIdx}</strong>. 尸体宽度: ${i} (右) - ${leftBoundary} (左) - 1 = <strong>${width}</strong>. 遗产面积: <strong>${area}</strong></div>
+                            <div class="text-sm opacity-60 mt-1 font-normal">💀 Executed. Victim: ${topIdx}. Width: ${i}(R) - ${leftBoundary}(L) - 1 = ${width}. Area: ${area}</div>
+                        `,
                         popped: {
                             idx: topIdx,
                             height: poppedHeight,
@@ -250,7 +255,10 @@
                     index: i,
                     stack: [...stack],
                     maxArea: maxArea,
-                    description: `没找到(或杀完了)比自己高的人。<br> ${i} (高度 ${h}) 放下屠刀，<span class="text-blue-400 font-bold">加入幸存者行列 (入栈)</span>。`,
+                    description: `
+                        <div>没找到(或杀完了)比自己高的人。${i} (高度 ${h}) 放下屠刀，<span class="text-blue-400 font-bold">加入幸存者行列 (入栈)</span>。</div>
+                        <div class="text-sm opacity-60 mt-1 font-normal">No taller ones left. ${i} (H:${h}) puts down the axe, joins survivors (Push).</div>
+                    `,
                     popped: null,
                     highlightIdx: i,
                     role: 'push' // Key state: Transition from Killer to Survivor
@@ -266,7 +274,10 @@
                     index: n,
                     stack: [...stack],
                     maxArea: maxArea,
-                    description: `大清洗开始 (数组结束)。所有幸存者都必须被处决。下一个是 ${topIdx}。`,
+                    description: `
+                        <div>大清洗开始 (数组结束)。所有幸存者都必须被处决。下一个是 ${topIdx}。</div>
+                        <div class="text-sm opacity-60 mt-1 font-normal">The Great Purge (End of Array). All survivors must be executed. Next is ${topIdx}.</div>
+                    `,
                     popped: null,
                     highlightIdx: null,
                     compareIdx: topIdx,
@@ -284,8 +295,10 @@
                     index: n,
                     stack: [...stack],
                     maxArea: maxArea,
-                    description: `💀 最终处决 ${topIdx}。
-                    <br> 面积: ${poppedHeight} × ${width} = <strong>${area}</strong>`,
+                    description: `
+                        <div>💀 最终处决 ${topIdx}。 面积: ${poppedHeight} × ${width} = <strong>${area}</strong></div>
+                        <div class="text-sm opacity-60 mt-1 font-normal">💀 Final Execution ${topIdx}. Area: ${poppedHeight} × ${width} = ${area}</div>
+                    `,
                     popped: {
                         idx: topIdx,
                         height: poppedHeight,
@@ -303,7 +316,10 @@
                 index: n,
                 stack: [...stack],
                 maxArea: maxArea,
-                description: `屠杀结束。最大的“遗产”是 <strong>${maxArea}</strong>。`,
+                description: `
+                    <div>屠杀结束。最大的“遗产”是 <strong>${maxArea}</strong>。</div>
+                    <div class="text-sm opacity-60 mt-1 font-normal">Massacre over. Max "Legacy" is ${maxArea}.</div>
+                `,
                 popped: null,
                 highlightIdx: null,
                 role: 'finish'
@@ -431,7 +447,7 @@
             stackContainer.innerHTML = '';
             
             if (state.stack.length <= 0) {
-                 stackContainer.innerHTML = `<div class="text-gray-600 text-sm px-4">空</div>`;
+                 stackContainer.innerHTML = `<div class="text-gray-600 text-sm px-4">空 / Empty</div>`;
             }
 
             state.stack.forEach((idx, i) => {
