@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>单调栈：杀戮时刻 (修复版)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Creepster&family=Roboto+Mono:wght@400;700&display=swap');
+
+        body {
+            background-color: #1a0505;
+            color: #e5e5e5;
+            font-family: 'Roboto Mono', monospace;
+        }
+
+        .title-font {
+            font-family: 'Creepster', cursive;
+            letter-spacing: 2px;
+        }
+
+        /* Glassmorphism */
+        .glass-card {
+            background: rgba(40, 10, 10, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 50, 50, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        /* Animations */
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+
+        .trembling { animation: shake 0.5s infinite; }
+
+        @keyframes pop-in {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .new-survivor { animation: pop-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+        .slash-effect {
+            position: absolute;
+            top: 50%; left: 50%; width: 100%; height: 5px;
+            background: red; box-shadow: 0 0 10px red;
+            animation: slash 0.3s ease-out forwards;
+        }
+        @keyframes slash {
+            0% { transform: scale(1) rotate(0deg); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: scale(1.5) rotate(-45deg); opacity: 0; }
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #2a0a0a; }
+        ::-webkit-scrollbar-thumb { background: #5a1a1a; border-radius: 4px; }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto space-y-6">
+        
+        <!-- Header -->
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4 border-b border-red-900/50 pb-6">
+            <div>
+                <h1 class="text-4xl md:text-5xl text-red-600 title-font tracking-widest drop-shadow-[0_0_10px_rgba(255,0,0,0.5)]">
+                    MONOTONIC MASSACRE
+                </h1>
+                <p class="text-gray-400 mt-2 text-sm">
+                    <span class="text-red-500 font-bold">规则：</span> 比我高的都得死 (修复版)
+                </p>
+            </div>
+            
+            <div class="glass-card rounded-full p-2 pl-6 flex items-center gap-3">
+                <input 
+                    type="text" 
+                    id="heightsInput" 
+                    value="2, 1, 5, 6, 2, 3" 
+                    class="bg-black/30 border border-red-900/30 rounded px-3 py-1 text-sm font-mono w-48 text-red-100 placeholder-red-900 focus:outline-none focus:border-red-500"
+                >
+                <button onclick="resetViz()" class="bg-red-900 hover:bg-red-700 text-white rounded-full p-2 transition-colors border border-red-500">
+                    <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Horizontal Stack -->
+        <div class="glass-card rounded-xl p-4">
+            <div class="flex items-center gap-2 mb-3">
+                <i data-lucide="skull" class="w-5 h-5 text-gray-400"></i>
+                <span class="text-sm font-bold uppercase tracking-wider text-gray-400">存活者名单 (Stack Indices)</span>
+            </div>
+            <div id="stackContainer" class="flex items-center gap-3 overflow-x-auto pb-2 min-h-[80px]">
+                <!-- Stack items injected here -->
+            </div>
+        </div>
+
+        <!-- Main Arena -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- Left: Visual Arena -->
+            <div class="lg:col-span-8 space-y-6">
+                <div class="glass-card rounded-xl p-6 h-[500px] relative flex flex-col overflow-hidden">
+                    
+                    <!-- Background Grid -->
+                    <div class="absolute inset-0 opacity-20 pointer-events-none flex flex-col justify-between p-6 z-0">
+                        <div class="w-full h-px bg-red-900"></div>
+                        <div class="w-full h-px bg-red-900"></div>
+                        <div class="w-full h-px bg-red-900"></div>
+                        <div class="w-full h-px bg-red-900"></div>
+                        <div class="w-full h-px bg-red-900"></div>
+                    </div>
+
+                    <!-- Bars Container -->
+                    <div id="barsContainer" class="flex-1 flex items-end justify-center gap-2 relative z-10 px-4 pb-8 mt-12">
+                        <!-- Bars injected here -->
+                    </div>
+                    
+                    <!-- Floor -->
+                    <div class="absolute bottom-0 left-0 right-0 h-4 bg-[#2a0a0a] border-t border-red-900/50 z-10"></div>
+                </div>
+
+                <!-- Narrative Box -->
+                <div class="glass-card rounded-xl p-6 min-h-[120px] flex items-start gap-4">
+                    <div class="bg-red-900/20 p-4 rounded-lg text-red-500 shrink-0 border border-red-500/30">
+                        <i data-lucide="mic" class="w-6 h-6"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-red-400 mb-2">战场解说</h3>
+                        <p id="explanationText" class="text-lg leading-relaxed text-gray-200 font-bold">
+                            比赛即将开始...
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Controls & Stats -->
+            <div class="lg:col-span-4 space-y-6">
+                
+                <!-- Controls -->
+                <div class="glass-card rounded-xl p-6 flex justify-center gap-6 items-center">
+                    <button onclick="step(-1)" class="p-4 rounded-full hover:bg-white/10 transition-all active:scale-95 text-gray-400 hover:text-white">
+                        <i data-lucide="chevron-left" class="w-6 h-6"></i>
+                    </button>
+                    <button id="playPauseBtn" onclick="togglePlay()" class="p-6 rounded-full bg-red-700 hover:bg-red-600 text-white shadow-[0_0_20px_rgba(220,38,38,0.6)] transition-all active:scale-95 transform hover:scale-105 border border-red-400">
+                        <i data-lucide="play" class="w-8 h-8 fill-current"></i>
+                    </button>
+                    <button onclick="step(1)" class="p-4 rounded-full hover:bg-white/10 transition-all active:scale-95 text-gray-400 hover:text-white">
+                        <i data-lucide="chevron-right" class="w-6 h-6"></i>
+                    </button>
+                </div>
+
+                <!-- Max Area Tombstone -->
+                <div class="glass-card rounded-xl p-8 text-center relative overflow-hidden border-t-4 border-t-gray-500">
+                    <div class="absolute top-2 left-1/2 -translate-x-1/2 text-gray-600 text-6xl opacity-20">🪦</div>
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500 mb-4 relative z-10">记录 (Max Area)</h3>
+                    <div id="maxAreaDisplay" class="text-7xl font-black text-red-500 drop-shadow-[0_0_8px_rgba(255,0,0,0.8)] relative z-10 font-mono">
+                        0
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- State ---
+        let steps = [];
+        let currentStepIndex = 0;
+        let isPlaying = false;
+        let playInterval;
+        let heights = [];
+
+        // --- Logic Generation ---
+        function generateSteps(inputHeights) {
+            const steps = [];
+            const stack = [-1]; 
+            let maxArea = 0;
+            const n = inputHeights.length;
+
+            // Initial
+            steps.push({
+                index: -1,
+                stack: [...stack],
+                maxArea: 0,
+                description: "游戏开始。我们在栈底放了一个 '哨兵' (-1)。它是不死之身，永远守在最左边。",
+                popped: null,
+                highlightIdx: null,
+                role: 'init'
+            });
+
+            for (let i = 0; i < n; i++) {
+                const h = inputHeights[i];
+                
+                // While loop (The Killing Spree)
+                while (stack[stack.length - 1] !== -1 && inputHeights[stack[stack.length - 1]] >= h) {
+                    const topIdx = stack[stack.length - 1];
+                    const topH = inputHeights[topIdx];
+
+                    // Threat Phase
+                    steps.push({
+                        index: i,
+                        stack: [...stack],
+                        maxArea: maxArea,
+                        description: `<span class="text-red-400 font-bold">处决开始！</span> 
+                        <br> 处决者 ${i} (高度 ${h}) 拿着斧头走来了。
+                        <br> 幸存者 ${topIdx} (高度 ${topH}) 挡了路，<span class="text-red-500 font-bold">必须死！</span>`,
+                        popped: null,
+                        highlightIdx: i,
+                        compareIdx: topIdx,
+                        role: 'threat'
+                    });
+
+                    stack.pop();
+                    const poppedHeight = inputHeights[topIdx];
+                    const leftBoundary = stack[stack.length - 1];
+                    const width = i - leftBoundary - 1;
+                    const area = poppedHeight * width;
+                    maxArea = Math.max(maxArea, area);
+
+                    // Kill Phase
+                    steps.push({
+                        index: i,
+                        stack: [...stack],
+                        maxArea: maxArea,
+                        description: `<span class="text-gray-400">💀 处决完毕。</span> 受害者: <strong>${topIdx}</strong>
+                        <br> 尸体宽度: ${i} (右) - ${leftBoundary} (左) - 1 = <strong>${width}</strong>
+                        <br> 遗产面积: <strong>${area}</strong>`,
+                        popped: {
+                            idx: topIdx,
+                            height: poppedHeight,
+                            width: width,
+                            area: area,
+                            leftBoundary: leftBoundary,
+                            rightBoundary: i
+                        },
+                        highlightIdx: i,
+                        role: 'kill'
+                    });
+                }
+
+                stack.push(i);
+                steps.push({
+                    index: i,
+                    stack: [...stack],
+                    maxArea: maxArea,
+                    description: `没找到(或杀完了)比自己高的人。<br> ${i} (高度 ${h}) 放下屠刀，<span class="text-blue-400 font-bold">加入幸存者行列 (入栈)</span>。`,
+                    popped: null,
+                    highlightIdx: i,
+                    role: 'push' // Key state: Transition from Killer to Survivor
+                });
+            }
+
+            // Cleanup loop
+            while (stack[stack.length - 1] !== -1) {
+                const topIdx = stack[stack.length - 1];
+                const topH = inputHeights[topIdx];
+                
+                steps.push({
+                    index: n,
+                    stack: [...stack],
+                    maxArea: maxArea,
+                    description: `大清洗开始 (数组结束)。所有幸存者都必须被处决。下一个是 ${topIdx}。`,
+                    popped: null,
+                    highlightIdx: null,
+                    compareIdx: topIdx,
+                    role: 'cleanup-threat'
+                });
+
+                stack.pop();
+                const poppedHeight = inputHeights[topIdx];
+                const leftBoundary = stack[stack.length - 1];
+                const width = n - leftBoundary - 1;
+                const area = poppedHeight * width;
+                maxArea = Math.max(maxArea, area);
+
+                steps.push({
+                    index: n,
+                    stack: [...stack],
+                    maxArea: maxArea,
+                    description: `💀 最终处决 ${topIdx}。
+                    <br> 面积: ${poppedHeight} × ${width} = <strong>${area}</strong>`,
+                    popped: {
+                        idx: topIdx,
+                        height: poppedHeight,
+                        width: width,
+                        area: area,
+                        leftBoundary: leftBoundary,
+                        rightBoundary: n
+                    },
+                    highlightIdx: null,
+                    role: 'cleanup-kill'
+                });
+            }
+
+            steps.push({
+                index: n,
+                stack: [...stack],
+                maxArea: maxArea,
+                description: `屠杀结束。最大的“遗产”是 <strong>${maxArea}</strong>。`,
+                popped: null,
+                highlightIdx: null,
+                role: 'finish'
+            });
+
+            return steps;
+        }
+
+        // --- Rendering ---
+        function render() {
+            const state = steps[currentStepIndex];
+            const container = document.getElementById('barsContainer');
+            const maxH = Math.max(...heights, 1);
+            
+            container.innerHTML = '';
+
+            heights.forEach((h, idx) => {
+                const barWrapper = document.createElement('div');
+                barWrapper.className = 'flex-1 h-full flex flex-col justify-end group relative items-center';
+                const barHeightPct = (h / maxH) * 80;
+                
+                let barColor = 'bg-gray-800'; 
+                let borderColor = 'border-gray-700';
+                let emoji = ''; 
+                let opacity = 'opacity-40';
+                let transform = '';
+                let zIndex = 'z-0';
+
+                // 1. Base Survivor Logic (Blue)
+                if (state.stack.includes(idx)) {
+                    barColor = 'bg-blue-900';
+                    borderColor = 'border-blue-500';
+                    emoji = '😨'; // Scared face
+                    opacity = 'opacity-100';
+                    zIndex = 'z-10';
+                    
+                    // If this is the NEW survivor (just pushed)
+                    if (state.role === 'push' && state.highlightIdx === idx) {
+                        emoji = '😰'; // Sweating, just survived
+                        borderColor = 'border-green-400';
+                        barColor = 'bg-blue-800';
+                        // Keep it blue! Do NOT make it red.
+                    }
+
+                    if (state.compareIdx === idx) {
+                        barColor = 'bg-yellow-900';
+                        borderColor = 'border-yellow-500';
+                        emoji = '😱'; 
+                        transform = 'trembling';
+                        zIndex = 'z-20';
+                    }
+                    if (state.popped && state.popped.leftBoundary === idx) {
+                        emoji = '🧱'; 
+                        barColor = 'bg-gray-600';
+                        borderColor = 'border-gray-400';
+                        zIndex = 'z-20';
+                    }
+                }
+
+                // 2. Killer Logic (Red) - ONLY if actively killing
+                // Crucial Fix: Only apply Red/Devil style if NOT pushing
+                if (state.highlightIdx === idx && state.role !== 'push') {
+                    barColor = 'bg-red-900';
+                    borderColor = 'border-red-500';
+                    emoji = '😈'; 
+                    opacity = 'opacity-100';
+                    zIndex = 'z-30';
+                    
+                    if (state.role === 'threat' || state.role === 'kill') {
+                         emoji = '😈🗡️';
+                    }
+                }
+
+                // 3. Ghost
+                if (state.popped && state.popped.idx === idx) {
+                    emoji = '👻';
+                    barColor = 'bg-black';
+                    opacity = 'opacity-20';
+                }
+
+                barWrapper.innerHTML = `
+                    <div class="text-center text-xs font-bold text-gray-500 mb-2 font-mono">${h}</div>
+                    <div class="w-full relative flex flex-col justify-end items-center rounded-t-lg border-x border-t transition-all duration-300 ${barColor} ${borderColor} ${opacity} ${transform} ${zIndex}" style="height: ${barHeightPct}%">
+                        <div class="absolute -top-6 text-2xl filter drop-shadow-md transition-all duration-300">${emoji}</div>
+                        <div class="absolute bottom-2 text-[10px] text-white/50 font-mono">${idx}</div>
+                    </div>
+                `;
+                container.appendChild(barWrapper);
+            });
+
+            // Popped Overlay
+            if (state.popped) {
+                const overlay = document.createElement('div');
+                const totalBars = heights.length;
+                const leftPct = ((state.popped.leftBoundary + 1) / totalBars) * 100;
+                const widthPct = (state.popped.width / totalBars) * 100;
+                const heightPct = (state.popped.height / maxH) * 80;
+
+                overlay.className = 'absolute bottom-0 border-2 border-dashed border-red-500/50 bg-red-900/20 z-10 flex items-center justify-center pointer-events-none';
+                overlay.style.left = `calc(${leftPct}% + 4px)`;
+                overlay.style.width = `calc(${widthPct}% - 8px)`; 
+                overlay.style.height = `${heightPct}%`;
+                
+                const slash = document.createElement('div');
+                slash.className = 'slash-effect';
+                overlay.appendChild(slash);
+
+                overlay.innerHTML += `
+                    <div class="absolute -top-10 text-red-500 font-bold font-mono bg-black/80 px-2 py-1 rounded border border-red-500">
+                         Area: ${state.popped.area}
+                    </div>
+                    <div class="text-6xl opacity-30 select-none">💀</div>
+                `;
+                container.appendChild(overlay);
+            }
+
+            document.getElementById('explanationText').innerHTML = state.description;
+            document.getElementById('maxAreaDisplay').innerText = state.maxArea;
+            renderStack(state);
+            updateIcons();
+        }
+
+        function renderStack(state) {
+            const stackContainer = document.getElementById('stackContainer');
+            stackContainer.innerHTML = '';
+            
+            if (state.stack.length <= 0) {
+                 stackContainer.innerHTML = `<div class="text-gray-600 text-sm px-4">空</div>`;
+            }
+
+            state.stack.forEach((idx, i) => {
+                const isSentinel = idx === -1;
+                const isTop = i === state.stack.length - 1;
+                const isNew = state.role === 'push' && idx === state.highlightIdx;
+                
+                const div = document.createElement('div');
+                div.className = `flex flex-col items-center justify-center min-w-[50px] h-[60px] rounded border transition-all duration-300 relative
+                    ${isSentinel 
+                        ? 'bg-black border-gray-800 text-gray-600' 
+                        : isNew ? 'bg-blue-800 border-green-400 new-survivor' : 'bg-blue-900/30 border-blue-800 text-blue-200'}`;
+                
+                if (isTop && !isSentinel && !isNew) {
+                    div.className += ' scale-105 z-10';
+                }
+
+                div.innerHTML = `
+                    <span class="text-xl mb-1">${isSentinel ? '🔒' : (isNew ? '😰' : '😨')}</span>
+                    <span class="font-mono font-bold text-sm">${isSentinel ? '-1' : idx}</span>
+                `;
+                stackContainer.appendChild(div);
+            });
+        }
+
+        // --- Controls ---
+        function step(direction) {
+            const next = currentStepIndex + direction;
+            if (next >= 0 && next < steps.length) {
+                currentStepIndex = next;
+                render();
+            } else if (next >= steps.length) stop();
+        }
+
+        function togglePlay() { isPlaying ? stop() : start(); }
+
+        function start() {
+            if (currentStepIndex >= steps.length - 1) currentStepIndex = 0;
+            isPlaying = true;
+            document.getElementById('playPauseBtn').innerHTML = `<i data-lucide="pause" class="w-8 h-8 fill-current"></i>`;
+            updateIcons();
+            playInterval = setInterval(() => step(1), 1800); 
+        }
+
+        function stop() {
+            isPlaying = false;
+            clearInterval(playInterval);
+            document.getElementById('playPauseBtn').innerHTML = `<i data-lucide="play" class="w-8 h-8 fill-current"></i>`;
+            updateIcons();
+        }
+
+        function resetViz() {
+            stop();
+            const inputVal = document.getElementById('heightsInput').value;
+            heights = inputVal.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+            if (heights.length === 0) heights = [2, 1, 5, 6, 2, 3];
+            steps = generateSteps(heights);
+            currentStepIndex = 0;
+            render();
+        }
+
+        function updateIcons() { lucide.createIcons(); }
+        window.onload = resetViz;
+
+    </script>
+</body>
+</html>
