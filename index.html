@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Algorithm Visualizations | ROOT</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* 复用之前的黑客字体 */
+        @import url('https://fonts.googleapis.com/css2?family=VT323&family=Roboto+Mono:wght@400;700&display=swap');
+
+        body {
+            background-color: #000000;
+            background-image: 
+                linear-gradient(rgba(0, 255, 0, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 0, 0.03) 1px, transparent 1px);
+            background-size: 20px 20px;
+            color: #00ff00;
+            font-family: 'Roboto Mono', monospace;
+        }
+
+        .title-font {
+            font-family: 'VT323', monospace;
+            text-shadow: 0 0 10px rgba(0, 255, 0, 0.8);
+        }
+
+        /* 链接卡片的黑客边框风格 */
+        .hacker-border {
+            border: 1px solid #00ff00;
+            box-shadow: 0 0 5px rgba(0, 255, 0, 0.1);
+            position: relative;
+            background: rgba(0, 20, 0, 0.8);
+            transition: all 0.3s ease;
+        }
+
+        /* 装饰用的四角 */
+        .hacker-border::before {
+            content: '';
+            position: absolute;
+            top: -1px; left: -1px;
+            width: 8px; height: 8px;
+            border-top: 2px solid #00ff00;
+            border-left: 2px solid #00ff00;
+        }
+
+        .hacker-border::after {
+            content: '';
+            position: absolute;
+            bottom: -1px; right: -1px;
+            width: 8px; height: 8px;
+            border-bottom: 2px solid #00ff00;
+            border-right: 2px solid #00ff00;
+        }
+
+        /* 悬停效果 */
+        .link-card:hover {
+            background: rgba(0, 50, 0, 0.9);
+            transform: translateX(5px);
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+            cursor: pointer;
+        }
+
+        .link-card:hover h2 {
+            text-shadow: 0 0 8px #00ff00;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-8 max-w-4xl mx-auto flex flex-col">
+
+    <!-- Header -->
+    <header class="mb-12 border-b border-green-900 pb-4">
+        <h1 class="text-6xl title-font mb-2">ALGO_VIZ_HUB</h1>
+        <p class="text-green-600 font-mono text-sm">> SELECT_TARGET_MODULE...</p>
+    </header>
+
+    <!-- Grid of Problems -->
+    <div class="grid gap-6">
+
+        <!-- 题目 1: 最大矩形 -->
+        <!-- 关键点：href 必须对应你改名后的文件名 -->
+        <a href="largest-rectangle.html" class="block group">
+            <div class="hacker-border p-6 link-card">
+                <div class="flex items-center justify-between mb-2">
+                    <h2 class="text-2xl font-bold flex items-center gap-3 group-hover:text-white transition-colors">
+                        <i data-lucide="bar-chart-2"></i>
+                        84. Largest Rectangle in Histogram
+                    </h2>
+                    <span class="text-xs border border-green-600 px-2 py-0.5 rounded text-green-400 bg-green-900/20">HARD</span>
+                </div>
+                <p class="text-green-700 text-sm mb-4">
+                    Monotonic Stack Algorithm visualization. "Killer" vs "Survivor" metaphor.
+                    <br>单调栈可视化：杀手与幸存者。
+                </p>
+                <div class="text-xs font-mono text-green-500 flex justify-between">
+                    <span>> ./exec_viz.sh</span>
+                    <span class="text-white bg-green-900 px-2 animate-pulse">ONLINE</span>
+                </div>
+            </div>
+        </a>
+
+        <!-- 题目 2: 占位符 (以后做别的题直接复制这段) -->
+        <a href="#" class="block opacity-50 cursor-not-allowed">
+            <div class="hacker-border p-6 border-green-900 text-green-900" style="border-color: #1a4d1a;">
+                <div class="flex items-center justify-between mb-2">
+                    <h2 class="text-2xl font-bold flex items-center gap-3">
+                        <i data-lucide="lock"></i>
+                        Next Problem...
+                    </h2>
+                    <span class="text-xs border border-green-900 px-2 py-0.5 rounded">LOCKED</span>
+                </div>
+                <p class="text-sm mb-4">
+                    Module not found. Please implement more algorithms.
+                </p>
+                <div class="text-xs font-mono">
+                    > STATUS: OFFLINE
+                </div>
+            </div>
+        </a>
+
+    </div>
+
+    <footer class="mt-auto text-center text-green-900 text-xs font-mono border-t border-green-900/30 pt-10 pb-4">
+        ROOT@GITHUB_PAGES:~$ echo "Keep Coding"
+    </footer>
+
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>
