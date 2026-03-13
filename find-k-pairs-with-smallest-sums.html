@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Find K Pairs with Smallest Sums (Dating App 🤣)</title>
+    <!-- Use a modern, fun font -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #ffe6f2; /* Soft pink */
+            --panel-bg: rgba(255, 255, 255, 0.85);
+            --border-radius: 16px;
+            --primary: #ff4d94;
+            --primary-hover: #ff1a75;
+            --text-main: #333;
+            --text-muted: #666;
+            --group-a-color: #66ccff;
+            --group-b-color: #ff99ff;
+            --heart-color: #ff3333;
+        }
+
+        body {
+            font-family: 'Fredoka', sans-serif;
+            background: linear-gradient(135deg, var(--bg-color) 0%, #ffcce6 100%);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        h1 {
+            color: var(--primary);
+            text-align: center;
+            margin-bottom: 5px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            font-size: 2.5rem;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            margin-bottom: 30px;
+            font-size: 1.2rem;
+            text-align: center;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        /* Control Panel */
+        .controls {
+            background: var(--panel-bg);
+            padding: 20px;
+            border-radius: var(--border-radius);
+            box-shadow: 0 8px 32px rgba(255, 77, 148, 0.15);
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid rgba(255, 255, 255, 0.8);
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        label {
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        input {
+            padding: 10px 15px;
+            border: 2px solid #ffb3d9;
+            border-radius: 20px;
+            font-family: 'Fredoka', sans-serif;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.3s, box-shadow 0.3s;
+            width: 150px;
+        }
+
+        input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 10px rgba(255, 77, 148, 0.3);
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 20px;
+            background-color: var(--primary);
+            color: white;
+            font-family: inherit;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: transform 0.1s, background-color 0.3s, box-shadow 0.3s;
+            box-shadow: 0 4px 6px rgba(255, 77, 148, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(255, 77, 148, 0.4);
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        /* Visualization Area */
+        .viz-area {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            padding: 20px;
+            border-radius: var(--border-radius);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            position: relative;
+        }
+
+        .panel-title {
+            font-size: 1.5rem;
+            color: var(--primary);
+            margin-bottom: 15px;
+            text-align: center;
+            border-bottom: 2px dashed #ffb3d9;
+            padding-bottom: 10px;
+        }
+
+        /* People Lines */
+        .lines-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .line-row {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end; /* Align to bottom so heights are relative */
+            height: 120px;
+            padding: 10px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.5);
+            overflow-x: auto;
+            position: relative;
+        }
+
+        .line-label {
+            position: absolute;
+            top: 5px;
+            left: 10px;
+            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            z-index: 10;
+        }
+
+        .person {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            min-width: 50px;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .person.highlight {
+            transform: scale(1.1);
+            filter: drop-shadow(0 0 10px gold);
+        }
+
+        .height-label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-size: 1.1rem;
+            background: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 2;
+        }
+
+        .emoji-body {
+            font-size: 2.5rem;
+            line-height: 1;
+            transition: transform 0.3s;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Dynamic heights based on value */
+        .h-xs .emoji-body { transform: scaleY(0.6) scaleX(1.2); }
+        .h-s .emoji-body { transform: scaleY(0.8) scaleX(1.1); }
+        .h-m .emoji-body { transform: scaleY(1) scaleX(1); }
+        .h-l .emoji-body { transform: scaleY(1.3) scaleX(0.9); }
+        .h-xl .emoji-body { transform: scaleY(1.6) scaleX(0.8); }
+
+        .group-a .height-label { color: #007bb5; border: 2px solid var(--group-a-color); }
+        .group-b .height-label { color: #cc00cc; border: 2px solid var(--group-b-color); }
+
+        /* Min Heap / Matchmaker Pool */
+        .heap-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            align-content: flex-start;
+            min-height: 200px;
+        }
+
+        .heap-node {
+            background: white;
+            border: 3px solid gold;
+            border-radius: 15px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            transform-origin: center;
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            min-width: 80px;
+            transition: all 0.5s ease;
+        }
+
+        .heap-node.extracting {
+            transform: scale(1.2);
+            border-color: var(--heart-color);
+            box-shadow: 0 0 20px var(--heart-color);
+            z-index: 100;
+        }
+
+        .heap-sum {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--primary);
+            margin-bottom: 5px;
+            border-bottom: 1px solid #ccc;
+            width: 100%;
+            text-align: center;
+            padding-bottom: 3px;
+        }
+
+        .heap-pair {
+            display: flex;
+            gap: 5px;
+            font-size: 1.5rem;
+            margin-top: 5px;
+        }
+
+        .pair-emojis {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .pair-emojis span {
+            font-size: 1.5rem;
+        }
+
+        /* Result Area */
+        .result-container {
+            grid-column: 1 / -1;
+            min-height: 150px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            align-content: flex-start;
+        }
+
+        .matched-pair {
+            background: white;
+            border-radius: 20px;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 15px rgba(255, 51, 51, 0.2);
+            border: 2px solid #ffb3b3;
+            animation: slideUp 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            position: relative;
+        }
+
+        .matched-pair .heart {
+            color: var(--heart-color);
+            font-size: 1.8rem;
+            animation: heartbeat 1.5s infinite;
+        }
+
+        .matched-details {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .matched-sum {
+            font-weight: bold;
+            color: var(--primary);
+            font-size: 1.2rem;
+        }
+
+        .matched-chars {
+            font-size: 1.8rem;
+        }
+
+        /* Log Panel */
+        .log-panel {
+            grid-column: 1 / -1;
+            background: #282c34;
+            color: #abb2bf;
+            font-family: 'Courier New', Courier, monospace;
+            padding: 15px;
+            border-radius: 10px;
+            height: 150px;
+            overflow-y: auto;
+            font-size: 0.95rem;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            line-height: 1.4;
+        }
+
+        .log-entry.push { color: #98c379; } /* Green */
+        .log-entry.pop { color: #e06c75; } /* Red */
+        .log-entry.info { color: #61afef; } /* Blue */
+        .log-entry.match { color: #c678dd; font-weight: bold; } /* Purple */
+
+        /* Animations */
+        @keyframes popIn {
+            0% { transform: scale(0); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            0% { transform: translateY(50px) scale(0.5); opacity: 0; }
+            100% { transform: translateY(0) scale(1); opacity: 1; }
+        }
+
+        @keyframes heartbeat {
+            0% { transform: scale(1); }
+            15% { transform: scale(1.3); }
+            30% { transform: scale(1); }
+            45% { transform: scale(1.3); }
+            60% { transform: scale(1); }
+            100% { transform: scale(1); }
+        }
+
+        .flying-heart {
+            position: absolute;
+            font-size: 2rem;
+            color: var(--heart-color);
+            pointer-events: none;
+            z-index: 1000;
+            animation: flyUp 1s ease-out forwards;
+        }
+
+        @keyframes flyUp {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-100px) scale(1.5); opacity: 0; }
+        }
+
+        /* Custom Scrollbar for logs */
+        .log-panel::-webkit-scrollbar {
+            width: 8px;
+        }
+        .log-panel::-webkit-scrollbar-track {
+            background: #1e2227;
+            border-radius: 4px;
+        }
+        .log-panel::-webkit-scrollbar-thumb {
+            background: #5c6370;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>👫 Shorties Dating App 👫</h1>
+    <div class="subtitle">Find K Pairs with Smallest Sums (LeetCode 373) - Who are the shortest couples?</div>
+
+    <div class="container">
+        <!-- Controls -->
+        <div class="controls">
+            <div class="input-group">
+                <label for="nums1Input">Group A (Boyz):</label>
+                <input type="text" id="nums1Input" value="1, 7, 11">
+            </div>
+            <div class="input-group">
+                <label for="nums2Input">Group B (Girlz):</label>
+                <input type="text" id="nums2Input" value="2, 4, 6">
+            </div>
+            <div class="input-group">
+                <label for="kInput">K Pairs:</label>
+                <input type="number" id="kInput" value="3" min="1" max="100" style="width: 60px;">
+            </div>
+            <button id="stepBtn">🚶 Step</button>
+            <button id="autoBtn">▶️ Auto Match</button>
+            <button id="resetBtn">🔄 Reset</button>
+        </div>
+
+        <div class="viz-area">
+            <!-- Left: Inputs (The Lines) -->
+            <div class="panel">
+                <div class="panel-title">The Waiting Lines</div>
+                <div class="lines-container" id="linesContainer">
+                    <div class="line-row group-a" id="rowA">
+                        <div class="line-label">Group A (nums1)</div>
+                        <!-- People will be generated here -->
+                    </div>
+                    <div class="line-row group-b" id="rowB">
+                        <div class="line-label">Group B (nums2)</div>
+                        <!-- People will be generated here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Min Heap -->
+            <div class="panel">
+                <div class="panel-title">Matchmaker's Min-Heap 📊</div>
+                <div class="heap-container" id="heapContainer">
+                    <!-- Nodes will appear here -->
+                </div>
+            </div>
+
+            <!-- Bottom: Result -->
+            <div class="panel result-container" id="resultContainer">
+                <!-- <div class="panel-title" style="width: 100%;">Happy Couples (Result)</div> -->
+                <!-- Matches will appear here -->
+            </div>
+
+            <!-- Logs -->
+            <div class="log-panel" id="logPanel">
+                <div class="log-entry info">System: Matchmaker initialized. Waiting for participants...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Constants & Emojis ---
+        const EMOJIS_A = ['🧍‍♂️', '👨‍🦲', '🕵️‍♂️', '👼', '🦸‍♂️'];
+        const EMOJIS_B = ['🧍‍♀️', '👩‍🦰', '🧜‍♀️', '🧚‍♀️', '🦸‍♀️'];
+
+        // --- DOM Elements ---
+        const nums1Input = document.getElementById('nums1Input');
+        const nums2Input = document.getElementById('nums2Input');
+        const kInput = document.getElementById('kInput');
+        const stepBtn = document.getElementById('stepBtn');
+        const autoBtn = document.getElementById('autoBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const rowA = document.getElementById('rowA');
+        const rowB = document.getElementById('rowB');
+        const heapContainer = document.getElementById('heapContainer');
+        const resultContainer = document.getElementById('resultContainer');
+        const logPanel = document.getElementById('logPanel');
+
+        // --- State Variables ---
+        let nums1 = [];
+        let nums2 = [];
+        let k = 0;
+        let heap = []; // Will store {sum, i, j, id}
+        let result = [];
+        let stepCount = 0;
+        let isAutoPlaying = false;
+        let autoPlayInterval = null;
+        let nodeIdCounter = 0;
+        
+        // Generator for steps
+        let algoGenerator = null;
+
+        // --- Helper: MinHeap Logic ---
+        function getParent(i) { return Math.floor((i - 1) / 2); }
+        function getLeft(i) { return 2 * i + 1; }
+        function getRight(i) { return 2 * i + 2; }
+
+        function swap(i, j) {
+            const temp = heap[i];
+            heap[i] = heap[j];
+            heap[j] = temp;
+        }
+
+        // --- UI Helpers ---
+        function log(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.innerHTML = `> ${message}`;
+            logPanel.appendChild(entry);
+            logPanel.scrollTop = logPanel.scrollHeight;
+        }
+
+        function createPersonElement(val, groupClass, emojiList) {
+            const p = document.createElement('div');
+            p.className = `person ${groupClass}`;
+            
+            const randomEmoji = emojiList[Math.floor(Math.random() * emojiList.length)];
+            
+            // Determine height class based on value relative to dataset
+            let hClass = 'h-m';
+            if (val < 0) hClass = 'h-xs';
+            else if (val < 5) hClass = 'h-s';
+            else if (val > 15) hClass = 'h-xl';
+            else if (val > 10) hClass = 'h-l';
+
+            p.innerHTML = `
+                <div class="height-label">${val}</div>
+                <div class="emoji-body ${hClass}">${randomEmoji}</div>
+            `;
+            return p;
+        }
+
+        function renderLines() {
+            // Keep labels
+            rowA.innerHTML = '<div class="line-label">Group A (nums1)</div>';
+            rowB.innerHTML = '<div class="line-label">Group B (nums2)</div>';
+
+            nums1.forEach((val, i) => {
+                const el = createPersonElement(val, 'group-a', EMOJIS_A);
+                el.id = `a-${i}`;
+                rowA.appendChild(el);
+            });
+
+            nums2.forEach((val, i) => {
+                const el = createPersonElement(val, 'group-b', EMOJIS_B);
+                el.id = `b-${i}`;
+                rowB.appendChild(el);
+            });
+        }
+
+        function highlightPersons(i, j) {
+            document.querySelectorAll('.person').forEach(el => el.classList.remove('highlight'));
+            const a = document.getElementById(`a-${i}`);
+            const b = document.getElementById(`b-${j}`);
+            if (a) a.classList.add('highlight');
+            if (b) b.classList.add('highlight');
+        }
+
+        function createHeapNodeElement(nodeData) {
+            if (!nodeData) return null;
+            const el = document.createElement('div');
+            el.className = 'heap-node';
+            el.id = `heap-node-${nodeData.id}`;
+            el.innerHTML = `
+                <div class="heap-sum">Sum: ${nodeData.sum}</div>
+                <div class="heap-pair">
+                    <span style="color:var(--group-a-color)">${nums1[nodeData.i]}</span>
+                    <span>+</span>
+                    <span style="color:var(--group-b-color)">${nums2[nodeData.j]}</span>
+                </div>
+            `;
+            return el;
+        }
+
+        function renderHeap() {
+            heapContainer.innerHTML = '';
+            // Render in a simple flex layout for visualizer, 
+            // a tree is too complex and wide for K Pairs array.
+            heap.forEach(node => {
+                const el = createHeapNodeElement(node);
+                if (el) heapContainer.appendChild(el);
+            });
+        }
+
+        function renderResultPair(nodeData) {
+            const el = document.createElement('div');
+            el.className = 'matched-pair';
+            
+            const emojiA = EMOJIS_A[Math.floor(Math.random() * EMOJIS_A.length)];
+            const emojiB = EMOJIS_B[Math.floor(Math.random() * EMOJIS_B.length)];
+
+            el.innerHTML = `
+                <div class="matched-chars">${emojiA}</div>
+                <div class="heart">❤️</div>
+                <div class="matched-chars">${emojiB}</div>
+                <div class="matched-details">
+                    <span class="matched-sum">Sum: ${nodeData.sum}</span>
+                    <span>[${nums1[nodeData.i]}, ${nums2[nodeData.j]}]</span>
+                </div>
+            `;
+            resultContainer.appendChild(el);
+
+            // Create flying heart animation from heap to result
+            createFlyingHeart();
+        }
+
+        function createFlyingHeart() {
+            const heart = document.createElement('div');
+            heart.className = 'flying-heart';
+            heart.textContent = '❤️';
+            document.body.appendChild(heart);
+            
+            // Random start position near middle
+            heart.style.left = (window.innerWidth / 2 + (Math.random() * 100 - 50)) + 'px';
+            heart.style.top = (window.innerHeight / 2) + 'px';
+
+            setTimeout(() => heart.remove(), 1000);
+        }
+
+        // --- Algorithm Generator ---
+        // We use a generator to yield states so we can step through the UI
+        function* solveKPairs() {
+            heap = [];
+            
+            // 1. Initialize Heap
+            log(`Phase 1: Initialize heap with (nums1[i], nums2[0])`, 'info');
+            for (let i = 0; i < Math.min(nums1.length, k); i++) {
+                highlightPersons(i, 0);
+                const sum = nums1[i] + nums2[0];
+                const node = { sum, i, j: 0, id: nodeIdCounter++ };
+                
+                // Push and heapifyUp visually
+                heap.push(node);
+                let currentIdx = heap.length - 1;
+                while (currentIdx > 0 && heap[getParent(currentIdx)].sum > heap[currentIdx].sum) {
+                    swap(getParent(currentIdx), currentIdx);
+                    currentIdx = getParent(currentIdx);
+                }
+                
+                log(`Pushed pair [${nums1[i]}, ${nums2[0]}] with sum ${sum} into waiting pool.`, 'push');
+                renderHeap();
+                yield 'init_push';
+            }
+
+            // 2. Extract and Expand
+            log(`Phase 2: Extract minimums and expand`, 'info');
+            while (heap.length > 0 && result.length < k) {
+                // Extract Min
+                const minNode = heap[0];
+                highlightPersons(minNode.i, minNode.j);
+                
+                // Visual effect for extracting
+                const domNode = document.getElementById(`heap-node-${minNode.id}`);
+                if (domNode) domNode.classList.add('extracting');
+                yield 'extract_highlight';
+
+                // Actual extract logic
+                const popped = heap[0];
+                if (heap.length === 1) {
+                    heap.pop();
+                } else {
+                    heap[0] = heap.pop();
+                    // Heapify Down
+                    let index = 0;
+                    while (getLeft(index) < heap.length) {
+                        let smallerChild = getLeft(index);
+                        if (getRight(index) < heap.length && heap[getRight(index)].sum < heap[smallerChild].sum) {
+                            smallerChild = getRight(index);
+                        }
+                        if (heap[index].sum <= heap[smallerChild].sum) break;
+                        swap(index, smallerChild);
+                        index = smallerChild;
+                    }
+                }
+                
+                result.push([nums1[minNode.i], nums2[minNode.j]]);
+                log(`🌟 MATCH FOUND! [${nums1[minNode.i]}, ${nums2[minNode.j]}] popped with smallest sum ${minNode.sum}!`, 'match');
+                renderHeap();
+                renderResultPair(minNode);
+                
+                yield 'extract_done';
+
+                if (result.length >= k) {
+                    log(`Reached target of ${k} pairs!`, 'info');
+                    break;
+                }
+
+                // If j+1 exists, push nums1[i], nums2[j+1]
+                if (minNode.j + 1 < nums2.length) {
+                    highlightPersons(minNode.i, minNode.j + 1);
+                    const newI = minNode.i;
+                    const newJ = minNode.j + 1;
+                    const newSum = nums1[newI] + nums2[newJ];
+                    const newNode = { sum: newSum, i: newI, j: newJ, id: nodeIdCounter++ };
+                    
+                    heap.push(newNode);
+                    
+                    // Heapify Up
+                    let currentIdx = heap.length - 1;
+                    while (currentIdx > 0 && heap[getParent(currentIdx)].sum > heap[currentIdx].sum) {
+                        swap(getParent(currentIdx), currentIdx);
+                        currentIdx = getParent(currentIdx);
+                    }
+                    
+                    log(`Pushed adjacent pair [${nums1[newI]}, ${nums2[newJ]}] (sum ${newSum}) into pool.`, 'push');
+                    renderHeap();
+                    yield 'expand_push';
+                }
+            }
+
+            log(`🎉 All ${result.length} pairs successfully matched!`, 'match');
+            return 'done';
+        }
+
+        // --- Controls Logic ---
+        function parseInputs() {
+            try {
+                // Parse, sort to ensure algorithm works conceptually, though visually we keep original input if possible.
+                // Actually, Leetcode assumes sorted arrays. Let's sort them so the algo works correctly!
+                nums1 = nums1Input.value.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n)).sort((a,b)=>a-b);
+                nums2 = nums2Input.value.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n)).sort((a,b)=>a-b);
+                k = parseInt(kInput.value);
+
+                // Update inputs to show sorted version
+                nums1Input.value = nums1.join(', ');
+                nums2Input.value = nums2.join(', ');
+
+                if (nums1.length === 0 || nums2.length === 0 || isNaN(k) || k <= 0) {
+                    alert("Please provide valid comma-separated arrays and a valid K > 0.");
+                    return false;
+                }
+                return true;
+            } catch (e) {
+                alert("Invalid input format.");
+                return false;
+            }
+        }
+
+        function init() {
+            if (!parseInputs()) return;
+            
+            // Reset UI
+            heapContainer.innerHTML = '';
+            resultContainer.innerHTML = '';
+            logPanel.innerHTML = '';
+            
+            result = [];
+            nodeIdCounter = 0;
+            isAutoPlaying = false;
+            autoBtn.textContent = '▶️ Auto Match';
+            clearInterval(autoPlayInterval);
+            
+            stepBtn.disabled = false;
+            autoBtn.disabled = false;
+            
+            renderLines();
+            log(`System ready. k=${k}, Groups sorted. Let the match-making begin!`, 'info');
+            
+            algoGenerator = solveKPairs();
+        }
+
+        function step() {
+            if (!algoGenerator) init();
+            
+            const next = algoGenerator.next();
+            
+            if (next.done) {
+                stepBtn.disabled = true;
+                if (isAutoPlaying) toggleAutoPlay();
+                autoBtn.disabled = true;
+                document.querySelectorAll('.person').forEach(el => el.classList.remove('highlight'));
+            }
+        }
+
+        function toggleAutoPlay() {
+            if (isAutoPlaying) {
+                isAutoPlaying = false;
+                autoBtn.textContent = '▶️ Auto Match';
+                clearInterval(autoPlayInterval);
+                stepBtn.disabled = false;
+            } else {
+                if (!algoGenerator || stepBtn.disabled) init();
+                isAutoPlaying = true;
+                autoBtn.textContent = '⏸ Pause';
+                stepBtn.disabled = true;
+                autoPlayInterval = setInterval(step, 800); // 800ms between steps
+            }
+        }
+
+        // --- Event Listeners ---
+        stepBtn.addEventListener('click', step);
+        autoBtn.addEventListener('click', toggleAutoPlay);
+        resetBtn.addEventListener('click', init);
+
+        // Initial setup
+        init();
+
+    </script>
+</body>
+</html>
