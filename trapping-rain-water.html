@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>接雨水：赛博洪水 / Trapping Rain Water: Cyber Flood</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Roboto+Mono:wght@400;700&display=swap');
+
+        body {
+            background-color: #020617;
+            background-image:
+                radial-gradient(ellipse at top, rgba(6, 182, 212, 0.08) 0%, transparent 60%),
+                radial-gradient(ellipse at bottom, rgba(59, 130, 246, 0.06) 0%, transparent 60%);
+            color: #e2e8f0;
+            font-family: 'Roboto Mono', monospace;
+            min-height: 100vh;
+        }
+
+        .title-font {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        /* Glassmorphism */
+        .glass-card {
+            background: rgba(6, 20, 40, 0.65);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(6, 182, 212, 0.1);
+        }
+
+        /* Neon Glow */
+        .neon-cyan { text-shadow: 0 0 10px rgba(6, 182, 212, 0.8), 0 0 30px rgba(6, 182, 212, 0.4); }
+        .neon-blue { text-shadow: 0 0 10px rgba(59, 130, 246, 0.8); }
+        .glow-border-cyan { box-shadow: 0 0 15px rgba(6, 182, 212, 0.4); }
+        .glow-border-blue { box-shadow: 0 0 15px rgba(59, 130, 246, 0.4); }
+
+        /* Scanline effect on the arena */
+        .arena-scanline::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0, 0, 0, 0.07) 2px,
+                rgba(0, 0, 0, 0.07) 4px
+            );
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        /* Water animation */
+        @keyframes wave {
+            0%   { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+        .water-wave {
+            animation: wave 3s linear infinite;
+        }
+
+        @keyframes ripple {
+            0%   { transform: scale(0.8); opacity: 0.8; }
+            100% { transform: scale(1.2); opacity: 0; }
+        }
+        .water-ripple {
+            animation: ripple 1.5s ease-out infinite;
+        }
+
+        /* Pointer pulse */
+        @keyframes pointer-pulse {
+            0%, 100% { opacity: 1; transform: translateY(0); }
+            50%       { opacity: 0.6; transform: translateY(-4px); }
+        }
+        .pointer-pulse { animation: pointer-pulse 1.2s ease-in-out infinite; }
+
+        /* Number pop */
+        @keyframes pop-in {
+            0%   { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .pop-in { animation: pop-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #020617; }
+        ::-webkit-scrollbar-thumb { background: #164e63; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #0e7490; }
+
+        /* Horizontal pointer track */
+        .pointer-track {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 11px;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto space-y-6">
+
+        <!-- Header -->
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4 border-b border-cyan-900/50 pb-6">
+            <div>
+                <h1 class="text-3xl md:text-5xl text-cyan-400 title-font tracking-widest neon-cyan">
+                    CYBER FLOOD
+                </h1>
+                <p class="text-slate-400 mt-2 text-sm">
+                    <span class="text-cyan-500 font-bold">算法 / Algorithm:</span>
+                    双指针 · 左右夹击 / Two Pointers · Converging Tide
+                </p>
+                <p class="text-slate-600 text-xs mt-1">
+                    LeetCode 42 · Trapping Rain Water · Hard
+                </p>
+            </div>
+
+            <div class="glass-card rounded-full p-2 pl-6 flex items-center gap-3">
+                <input
+                    type="text"
+                    id="heightsInput"
+                    value="0, 1, 0, 2, 1, 0, 1, 3, 2, 1, 2, 1"
+                    class="bg-black/30 border border-cyan-900/30 rounded px-3 py-1 text-sm font-mono w-64 text-cyan-100 placeholder-cyan-900 focus:outline-none focus:border-cyan-500"
+                >
+                <button onclick="resetViz()" class="bg-cyan-900 hover:bg-cyan-700 text-white rounded-full p-2 transition-colors border border-cyan-500 glow-border-cyan">
+                    <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats Bar -->
+        <div class="grid grid-cols-3 gap-4">
+            <div class="glass-card rounded-xl p-4 text-center">
+                <div class="text-xs text-blue-400 uppercase tracking-widest mb-1">Left Max 🏔️</div>
+                <div id="leftMaxDisplay" class="text-3xl font-black text-blue-300 font-mono neon-blue">0</div>
+            </div>
+            <div class="glass-card rounded-xl p-4 text-center border-cyan-400/40" style="border-color: rgba(6,182,212,0.4);">
+                <div class="text-xs text-cyan-400 uppercase tracking-widest mb-1">Total Water 🌊</div>
+                <div id="totalWaterDisplay" class="text-3xl font-black text-cyan-300 font-mono neon-cyan pop-in">0</div>
+            </div>
+            <div class="glass-card rounded-xl p-4 text-center">
+                <div class="text-xs text-blue-400 uppercase tracking-widest mb-1">Right Max 🏔️</div>
+                <div id="rightMaxDisplay" class="text-3xl font-black text-blue-300 font-mono neon-blue">0</div>
+            </div>
+        </div>
+
+        <!-- Main Arena -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- Left: Visual Arena -->
+            <div class="lg:col-span-8 space-y-4">
+                <div class="glass-card rounded-xl p-4 relative arena-scanline" style="height: 460px; overflow: hidden;">
+
+                    <!-- Background vertical grid lines -->
+                    <div id="gridLines" class="absolute inset-0 flex pointer-events-none z-0 px-4 pb-12 pt-4"></div>
+
+                    <!-- Bars + Water + Pointer Markers Container -->
+                    <div id="barsContainer"
+                         class="absolute bottom-12 left-4 right-4 top-4 flex items-end gap-1 z-10">
+                        <!-- Injected by JS -->
+                    </div>
+
+                    <!-- Pointer Arrow Row -->
+                    <div id="pointerRow"
+                         class="absolute bottom-0 left-4 right-4 h-12 flex items-center gap-1 z-20 pointer-track">
+                        <!-- Injected by JS -->
+                    </div>
+
+                    <!-- Floor line -->
+                    <div class="absolute bottom-12 left-0 right-0 h-px bg-cyan-900/50 z-10"></div>
+                    <!-- Water level indicator (decorative floor) -->
+                    <div class="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-slate-950 to-transparent z-10 pointer-events-none"></div>
+                </div>
+
+                <!-- Log Box -->
+                <div class="glass-card rounded-xl p-5 min-h-[110px] flex items-start gap-4">
+                    <div class="bg-cyan-900/20 p-3 rounded-lg text-cyan-400 shrink-0 border border-cyan-500/30">
+                        <i data-lucide="terminal" class="w-5 h-5"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-cyan-600 mb-2">洪水日志 / Flood Log</h3>
+                        <p id="explanationText" class="text-base leading-relaxed text-slate-200 font-bold">
+                            系统待命... / Standby...
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Controls -->
+            <div class="lg:col-span-4 space-y-6">
+
+                <!-- Playback Controls -->
+                <div class="glass-card rounded-xl p-6 flex justify-center gap-6 items-center">
+                    <button onclick="step(-1)" class="p-4 rounded-full hover:bg-white/10 transition-all active:scale-95 text-slate-400 hover:text-white">
+                        <i data-lucide="chevron-left" class="w-6 h-6"></i>
+                    </button>
+                    <button id="playPauseBtn" onclick="togglePlay()"
+                        class="p-6 rounded-full bg-cyan-700 hover:bg-cyan-600 text-white shadow-[0_0_20px_rgba(6,182,212,0.5)] transition-all active:scale-95 transform hover:scale-105 border border-cyan-400">
+                        <i data-lucide="play" class="w-8 h-8 fill-current"></i>
+                    </button>
+                    <button onclick="step(1)" class="p-4 rounded-full hover:bg-white/10 transition-all active:scale-95 text-slate-400 hover:text-white">
+                        <i data-lucide="chevron-right" class="w-6 h-6"></i>
+                    </button>
+                </div>
+
+                <!-- Step Counter -->
+                <div class="glass-card rounded-xl p-4 text-center">
+                    <div class="text-xs text-slate-500 uppercase tracking-widest mb-1">Step</div>
+                    <div id="stepCounter" class="text-2xl font-black font-mono text-slate-300">0 / 0</div>
+                </div>
+
+                <!-- Legend -->
+                <div class="glass-card rounded-xl p-5 space-y-3">
+                    <div class="text-xs text-slate-500 uppercase tracking-widest mb-3">图例 / Legend</div>
+                    <div class="flex items-center gap-3 text-sm">
+                        <div class="w-5 h-5 rounded bg-slate-700 border border-slate-500 shrink-0"></div>
+                        <span class="text-slate-400">地形 / Terrain</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-sm">
+                        <div class="w-5 h-5 rounded bg-cyan-600/50 border border-cyan-400 shrink-0"></div>
+                        <span class="text-slate-400">积水 / Trapped Water</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-sm">
+                        <div class="w-5 h-5 rounded bg-blue-700 border border-blue-400 shrink-0"></div>
+                        <span class="text-slate-400">左指针 / Left Pointer</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-sm">
+                        <div class="w-5 h-5 rounded bg-violet-700 border border-violet-400 shrink-0"></div>
+                        <span class="text-slate-400">右指针 / Right Pointer</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-sm">
+                        <div class="w-5 h-5 rounded bg-yellow-700 border border-yellow-400 shrink-0"></div>
+                        <span class="text-slate-400">当前计算 / Active Calc</span>
+                    </div>
+                </div>
+
+                <!-- Algorithm Idea -->
+                <div class="glass-card rounded-xl p-5 space-y-2 text-xs text-slate-500 leading-relaxed">
+                    <div class="text-cyan-600 font-bold uppercase tracking-widest mb-2">核心思路 / Key Idea</div>
+                    <p>任意位置 <span class="text-cyan-400">i</span> 的积水 = <span class="text-blue-300">min(leftMax, rightMax)</span> − <span class="text-slate-300">height[i]</span></p>
+                    <p>双指针从两端向中间夹，每次移动较小的那侧。</p>
+                    <p class="text-slate-600">Water at <span class="text-cyan-400">i</span> = min of both side peaks minus current height. Move the shorter pointer.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ─── State ───────────────────────────────────────────────────────────────
+        let steps = [];
+        let currentStepIndex = 0;
+        let isPlaying = false;
+        let playInterval;
+        let heights = [];
+
+        // ─── Algorithm ───────────────────────────────────────────────────────────
+        function generateSteps(inputHeights) {
+            const steps = [];
+            if (!inputHeights || inputHeights.length === 0) {
+                steps.push({ left: 0, right: 0, leftMax: 0, rightMax: 0, totalWater: 0, waterMap: [], role: 'finish',
+                    description: '<div>数组为空，无法积水。/ Empty input, no water.</div>' });
+                return steps;
+            }
+
+            const n = inputHeights.length;
+            let left = 0, right = n - 1;
+            let leftMax = 0, rightMax = 0;
+            let totalWater = 0;
+            const waterMap = new Array(n).fill(0);
+
+            steps.push({
+                left, right, leftMax, rightMax, totalWater,
+                waterMap: [...waterMap],
+                role: 'init',
+                activeIdx: null,
+                description: `<div>🌊 洪水预警。双指针从两端出发：<span class="text-blue-400 font-bold">左 L=${left}</span>，<span class="text-violet-400 font-bold">右 R=${right}</span>。</div>
+                              <div class="text-sm opacity-60 mt-1 font-normal">Flood Alert. Two pointers initialized: Left=${left}, Right=${right}.</div>`
+            });
+
+            while (left < right) {
+                if (inputHeights[left] <= inputHeights[right]) {
+                    if (inputHeights[left] >= leftMax) {
+                        leftMax = inputHeights[left];
+                        steps.push({ left, right, leftMax, rightMax, totalWater, waterMap: [...waterMap],
+                            role: 'update-leftMax', activeIdx: left,
+                            description: `<div>⬆️ <span class="text-blue-400 font-bold">左指针 L=${left}</span> 高度 ${inputHeights[left]} 刷新了左侧最高峰：leftMax → <strong class="text-blue-300">${leftMax}</strong>。</div>
+                                          <div class="text-sm opacity-60 mt-1 font-normal">Left[${left}] (H:${inputHeights[left]}) is new leftMax=${leftMax}. No water here.</div>`
+                        });
+                    } else {
+                        const trapped = leftMax - inputHeights[left];
+                        waterMap[left] = trapped;
+                        totalWater += trapped;
+                        steps.push({ left, right, leftMax, rightMax, totalWater, waterMap: [...waterMap],
+                            role: 'fill-left', activeIdx: left,
+                            description: `<div>💧 积水！<span class="text-blue-400 font-bold">L=${left}</span>: leftMax(${leftMax}) − height(${inputHeights[left]}) = <strong class="text-cyan-300">${trapped}</strong>。累计 ${totalWater}。</div>
+                                          <div class="text-sm opacity-60 mt-1 font-normal">Water at [${left}]: leftMax(${leftMax}) - H(${inputHeights[left]}) = ${trapped}. Total: ${totalWater}.</div>`
+                        });
+                    }
+                    left++;
+                    if (left < right) {
+                        steps.push({ left, right, leftMax, rightMax, totalWater, waterMap: [...waterMap],
+                            role: 'move-left', activeIdx: left,
+                            description: `<div>➡️ left < right，且当前左侧较低 (h[left] ≤ h[right])。<span class="text-blue-400 font-bold">左指针前进 → L=${left}</span>。</div>
+                                          <div class="text-sm opacity-60 mt-1 font-normal">Heights[left] ≤ Heights[right], advance left pointer → L=${left}.</div>`
+                        });
+                    }
+                } else {
+                    if (inputHeights[right] >= rightMax) {
+                        rightMax = inputHeights[right];
+                        steps.push({ left, right, leftMax, rightMax, totalWater, waterMap: [...waterMap],
+                            role: 'update-rightMax', activeIdx: right,
+                            description: `<div>⬆️ <span class="text-violet-400 font-bold">右指针 R=${right}</span> 高度 ${inputHeights[right]} 刷新了右侧最高峰：rightMax → <strong class="text-violet-300">${rightMax}</strong>。</div>
+                                          <div class="text-sm opacity-60 mt-1 font-normal">Right[${right}] (H:${inputHeights[right]}) is new rightMax=${rightMax}. No water here.</div>`
+                        });
+                    } else {
+                        const trapped = rightMax - inputHeights[right];
+                        waterMap[right] = trapped;
+                        totalWater += trapped;
+                        steps.push({ left, right, leftMax, rightMax, totalWater, waterMap: [...waterMap],
+                            role: 'fill-right', activeIdx: right,
+                            description: `<div>💧 积水！<span class="text-violet-400 font-bold">R=${right}</span>: rightMax(${rightMax}) − height(${inputHeights[right]}) = <strong class="text-cyan-300">${trapped}</strong>。累计 ${totalWater}。</div>
+                                          <div class="text-sm opacity-60 mt-1 font-normal">Water at [${right}]: rightMax(${rightMax}) - H(${inputHeights[right]}) = ${trapped}. Total: ${totalWater}.</div>`
+                        });
+                    }
+                    right--;
+                    if (left < right) {
+                        steps.push({ left, right, leftMax, rightMax, totalWater, waterMap: [...waterMap],
+                            role: 'move-right', activeIdx: right,
+                            description: `<div>⬅️ left < right，且当前右侧较低 (h[right] < h[left])。<span class="text-violet-400 font-bold">右指针前进 → R=${right}</span>。</div>
+                                          <div class="text-sm opacity-60 mt-1 font-normal">Heights[right] < Heights[left], advance right pointer → R=${right}.</div>`
+                        });
+                    }
+                }
+            }
+
+            steps.push({ left, right, leftMax, rightMax, totalWater, waterMap: [...waterMap],
+                role: 'finish', activeIdx: null,
+                description: `<div>🌊 洪灾结束！双指针相遇于 ${left}。总蓄水量：<strong class="text-cyan-300">${totalWater}</strong>。</div>
+                              <div class="text-sm opacity-60 mt-1 font-normal">Flood over. Pointers met at ${left}. Total water = ${totalWater}.</div>`
+            });
+
+            return steps;
+        }
+
+        // ─── Rendering ───────────────────────────────────────────────────────────
+        function render() {
+            const state = steps[currentStepIndex];
+            const n = heights.length;
+            const maxH = Math.max(...heights, 1);
+
+            const barsContainer = document.getElementById('barsContainer');
+            const pointerRow    = document.getElementById('pointerRow');
+            barsContainer.innerHTML = '';
+            pointerRow.innerHTML    = '';
+
+            heights.forEach((h, idx) => {
+                const isLeft    = idx === state.left;
+                const isRight   = idx === state.right;
+                const isActive  = idx === state.activeIdx;
+                const waterH    = state.waterMap[idx] || 0;
+                const totalColH = h + waterH;
+                const colPct    = (totalColH / maxH) * 100;
+                const barPct    = (h / maxH) * 100;
+                const waterPct  = (waterH / maxH) * 100;
+
+                // Bar wrapper
+                const col = document.createElement('div');
+                col.className = 'flex-1 h-full flex flex-col justify-end relative';
+
+                // Height label
+                const hLabel = document.createElement('div');
+                hLabel.className = 'absolute w-full text-center text-[10px] font-bold font-mono';
+                hLabel.style.bottom = `calc(${colPct}% + 4px)`;
+                hLabel.style.color = isLeft ? '#93c5fd' : isRight ? '#c4b5fd' : '#64748b';
+                hLabel.textContent = h;
+                col.appendChild(hLabel);
+
+                // Overall column (bar + water stacked)
+                const colDiv = document.createElement('div');
+                colDiv.style.height = `${colPct}%`;
+                colDiv.className = 'relative w-full flex flex-col justify-end rounded-t-sm overflow-hidden transition-all duration-300';
+
+                // Water layer (top part)
+                if (waterH > 0) {
+                    const waterDiv = document.createElement('div');
+                    waterDiv.style.height = `${(waterH / totalColH) * 100}%`;
+                    waterDiv.className = 'w-full relative overflow-hidden flex-shrink-0';
+                    waterDiv.style.background = isActive
+                        ? 'rgba(6,182,212,0.6)'
+                        : 'rgba(6,182,212,0.35)';
+                    waterDiv.style.borderTop    = isActive ? '2px solid #22d3ee' : '1px solid rgba(6,182,212,0.5)';
+                    waterDiv.style.borderLeft   = '1px solid rgba(6,182,212,0.3)';
+                    waterDiv.style.borderRight  = '1px solid rgba(6,182,212,0.3)';
+                    waterDiv.style.boxShadow    = isActive ? 'inset 0 0 10px rgba(6,182,212,0.4)' : '';
+
+                    // Animated wave inside
+                    waterDiv.innerHTML = `
+                        <div class="absolute inset-x-0 bottom-0 h-2 overflow-hidden opacity-60">
+                            <div class="water-wave flex" style="width:200%">
+                                <svg viewBox="0 0 100 10" class="w-1/2" preserveAspectRatio="none" style="height:8px">
+                                    <path d="M0,5 C10,0,20,10,30,5 C40,0,50,10,60,5 C70,0,80,10,90,5 C95,2,100,5,100,5 L100,10 L0,10 Z" fill="rgba(99,242,252,0.4)"/>
+                                </svg>
+                                <svg viewBox="0 0 100 10" class="w-1/2" preserveAspectRatio="none" style="height:8px">
+                                    <path d="M0,5 C10,0,20,10,30,5 C40,0,50,10,60,5 C70,0,80,10,90,5 C95,2,100,5,100,5 L100,10 L0,10 Z" fill="rgba(99,242,252,0.4)"/>
+                                </svg>
+                            </div>
+                        </div>`;
+
+                    // Water amount label
+                    if (waterH >= 1) {
+                        const wLabel = document.createElement('div');
+                        wLabel.className = 'absolute inset-0 flex items-center justify-center text-[9px] font-bold text-cyan-200';
+                        wLabel.textContent = `+${waterH}`;
+                        waterDiv.appendChild(wLabel);
+                    }
+                    colDiv.appendChild(waterDiv);
+                }
+
+                // Terrain bar (bottom part)
+                const bar = document.createElement('div');
+                bar.style.height = `${(h / totalColH) * 100}%`;
+                bar.className = 'w-full flex-shrink-0 transition-all duration-300 relative';
+
+                if (isLeft && isRight) { // edge case: left === right
+                    bar.style.background = 'linear-gradient(to right, #1d4ed8, #7c3aed)';
+                    bar.style.border = '1px solid #a78bfa';
+                } else if (isLeft) {
+                    bar.style.background = '#1e3a8a';
+                    bar.style.border = '1px solid #3b82f6';
+                    bar.style.boxShadow = '0 0 8px rgba(59,130,246,0.6)';
+                } else if (isRight) {
+                    bar.style.background = '#3b0764';
+                    bar.style.border = '1px solid #7c3aed';
+                    bar.style.boxShadow = '0 0 8px rgba(124,58,237,0.6)';
+                } else if (isActive) {
+                    bar.style.background = '#713f12';
+                    bar.style.border = '1px solid #fbbf24';
+                    bar.style.boxShadow = '0 0 8px rgba(251,191,36,0.4)';
+                } else {
+                    bar.style.background = '#1e293b';
+                    bar.style.border = '1px solid #334155';
+                }
+                colDiv.appendChild(bar);
+                col.appendChild(colDiv);
+
+                // Index label at bottom
+                const idxLabel = document.createElement('div');
+                idxLabel.className = 'absolute w-full text-center text-[9px] font-mono';
+                idxLabel.style.bottom = '-16px';
+                idxLabel.style.color = isLeft ? '#93c5fd' : isRight ? '#c4b5fd' : '#475569';
+                idxLabel.textContent = idx;
+                col.appendChild(idxLabel);
+
+                barsContainer.appendChild(col);
+
+                // Pointer row cell
+                const pCell = document.createElement('div');
+                pCell.className = 'flex-1 flex items-center justify-center';
+
+                if (isLeft && isRight) {
+                    pCell.innerHTML = `<span class="pointer-pulse text-yellow-400 font-bold title-font text-xs">LR</span>`;
+                } else if (isLeft) {
+                    pCell.innerHTML = `<span class="pointer-pulse text-blue-400 font-bold title-font text-xs">▲L</span>`;
+                } else if (isRight) {
+                    pCell.innerHTML = `<span class="pointer-pulse text-violet-400 font-bold title-font text-xs">▲R</span>`;
+                } else {
+                    pCell.innerHTML = `<span class="text-slate-700 text-xs">·</span>`;
+                }
+                pointerRow.appendChild(pCell);
+            });
+
+            // Update stats
+            document.getElementById('leftMaxDisplay').textContent  = state.leftMax;
+            document.getElementById('rightMaxDisplay').textContent = state.rightMax;
+            document.getElementById('totalWaterDisplay').textContent = state.totalWater;
+            document.getElementById('explanationText').innerHTML = state.description;
+            document.getElementById('stepCounter').textContent = `${currentStepIndex + 1} / ${steps.length}`;
+
+            updateIcons();
+        }
+
+        // ─── Controls ────────────────────────────────────────────────────────────
+        function step(direction) {
+            const next = currentStepIndex + direction;
+            if (next >= 0 && next < steps.length) {
+                currentStepIndex = next;
+                render();
+            } else if (next >= steps.length) {
+                stop();
+            }
+        }
+
+        function togglePlay() { isPlaying ? stop() : start(); }
+
+        function start() {
+            if (currentStepIndex >= steps.length - 1) currentStepIndex = 0;
+            isPlaying = true;
+            document.getElementById('playPauseBtn').innerHTML = `<i data-lucide="pause" class="w-8 h-8 fill-current"></i>`;
+            updateIcons();
+            playInterval = setInterval(() => step(1), 1600);
+        }
+
+        function stop() {
+            isPlaying = false;
+            clearInterval(playInterval);
+            document.getElementById('playPauseBtn').innerHTML = `<i data-lucide="play" class="w-8 h-8 fill-current"></i>`;
+            updateIcons();
+        }
+
+        function resetViz() {
+            stop();
+            const inputVal = document.getElementById('heightsInput').value;
+            heights = inputVal.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+            if (heights.length === 0) heights = [0,1,0,2,1,0,1,3,2,1,2,1];
+            steps = generateSteps(heights);
+            currentStepIndex = 0;
+            render();
+        }
+
+        function updateIcons() { lucide.createIcons(); }
+        window.onload = resetViz;
+    </script>
+</body>
+</html>
