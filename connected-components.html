@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>黑帮认老大 / Gang Allegiance — Union-Find</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Roboto+Mono:wght@400;700&family=Noto+Serif+SC:wght@700&display=swap');
+
+        :root {
+            --bg:        #0a0a0f;
+            --panel:     rgba(15, 10, 25, 0.75);
+            --border:    rgba(180, 130, 255, 0.2);
+            --gold:      #f5c842;
+            --gold-glow: rgba(245, 200, 66, 0.6);
+            --purple:    #9333ea;
+            --red:       #dc2626;
+            --green:     #22c55e;
+            --cyan:      #22d3ee;
+        }
+
+        body {
+            background-color: var(--bg);
+            background-image:
+                radial-gradient(ellipse at 20% 20%, rgba(147,51,234,0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(220,38,38,0.06) 0%, transparent 50%);
+            color: #e2e8f0;
+            font-family: 'Roboto Mono', monospace;
+            min-height: 100vh;
+        }
+
+        .title-font  { font-family: 'Bebas Neue', sans-serif; letter-spacing: 3px; }
+        .cn-font     { font-family: 'Noto Serif SC', serif; }
+
+        .glass-card {
+            background: var(--panel);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(180,130,255,0.08);
+        }
+
+        /* Node card styles */
+        .node-card {
+            position: absolute;
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            cursor: default;
+            font-size: 11px;
+            font-family: 'Roboto Mono', monospace;
+            z-index: 10;
+        }
+        .node-default {
+            background: rgba(30, 20, 50, 0.9);
+            border: 2px solid rgba(120, 80, 200, 0.5);
+            box-shadow: 0 0 10px rgba(147,51,234,0.2);
+        }
+        .node-boss {
+            background: rgba(50, 35, 5, 0.95);
+            border: 2px solid var(--gold);
+            box-shadow: 0 0 20px var(--gold-glow), 0 0 40px rgba(245,200,66,0.2);
+        }
+        .node-active {
+            border-color: #f97316;
+            box-shadow: 0 0 20px rgba(249,115,22,0.7);
+            transform: scale(1.15);
+        }
+        .node-trace {
+            border-color: var(--cyan);
+            box-shadow: 0 0 15px rgba(34,211,238,0.5);
+        }
+        .node-compressed {
+            border-color: var(--green);
+            box-shadow: 0 0 15px rgba(34,197,94,0.5);
+        }
+        .node-merge-lose {
+            border-color: var(--red);
+            box-shadow: 0 0 20px rgba(220,38,38,0.6);
+            transform: scale(0.85);
+        }
+        .node-merge-win {
+            border-color: var(--gold);
+            box-shadow: 0 0 30px var(--gold-glow), 0 0 60px rgba(245,200,66,0.3);
+            transform: scale(1.2);
+        }
+        .node-same-gang {
+            border-color: var(--green);
+            box-shadow: 0 0 15px rgba(34,197,94,0.4);
+        }
+
+        /* Edge SVG lines */
+        .edge-line {
+            stroke: rgba(120, 80, 200, 0.3);
+            stroke-width: 2;
+            transition: all 0.4s;
+        }
+        .edge-active {
+            stroke: var(--gold);
+            stroke-width: 3;
+            filter: drop-shadow(0 0 6px var(--gold));
+        }
+        .edge-merged {
+            stroke: rgba(245,200,66,0.4);
+            stroke-width: 2;
+        }
+        .edge-skip {
+            stroke: rgba(34,197,94,0.5);
+            stroke-width: 2;
+            stroke-dasharray: 6,4;
+        }
+
+        /* Animated glow pulse for boss nodes */
+        @keyframes boss-pulse {
+            0%, 100% { box-shadow: 0 0 20px var(--gold-glow), 0 0 40px rgba(245,200,66,0.2); }
+            50%       { box-shadow: 0 0 30px var(--gold-glow), 0 0 60px rgba(245,200,66,0.4); }
+        }
+        .boss-pulse { animation: boss-pulse 2s ease-in-out infinite; }
+
+        /* Kneel animation */
+        @keyframes kneel {
+            0%   { transform: scale(1) rotate(0deg); }
+            40%  { transform: scale(0.8) rotate(-15deg); }
+            70%  { transform: scale(0.82) rotate(-10deg); }
+            100% { transform: scale(0.85) rotate(0deg); }
+        }
+        .kneeling { animation: kneel 0.8s ease-out forwards; }
+
+        /* Merge victory burst */
+        @keyframes victory {
+            0%   { transform: scale(1); }
+            30%  { transform: scale(1.35); }
+            60%  { transform: scale(1.18); }
+            100% { transform: scale(1.2); }
+        }
+        .victorious { animation: victory 0.8s ease-out forwards; }
+
+        /* Tracer dot */
+        @keyframes tracer-move {
+            0%   { opacity: 0; transform: scale(0.5); }
+            20%  { opacity: 1; transform: scale(1); }
+            80%  { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(0.5); }
+        }
+
+        /* Path compress arrow flash */
+        @keyframes compress-flash {
+            0%   { opacity: 0; stroke-dashoffset: 100; }
+            50%  { opacity: 1; stroke-dashoffset: 0; }
+            100% { opacity: 0; }
+        }
+        .compress-arrow { animation: compress-flash 0.8s ease-out forwards; }
+
+        /* Emoji pop */
+        @keyframes emoji-pop {
+            0%   { transform: scale(0) translateY(10px); opacity: 0; }
+            60%  { transform: scale(1.3) translateY(-4px); opacity: 1; }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
+        }
+        .emoji-pop { animation: emoji-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+
+        /* Log pulse */
+        @keyframes log-in {
+            0%   { transform: translateX(-8px); opacity: 0; }
+            100% { transform: translateX(0); opacity: 1; }
+        }
+        .log-in { animation: log-in 0.3s ease-out; }
+
+        /* Table cell flash */
+        @keyframes cell-flash {
+            0%,100% { background: transparent; }
+            50%     { background: rgba(245,200,66,0.25); }
+        }
+        .cell-flash { animation: cell-flash 0.6s ease; }
+
+        /* Component badge */
+        @keyframes badge-shake {
+            0%,100% { transform: scale(1); }
+            25% { transform: scale(1.2) rotate(-3deg); }
+            75% { transform: scale(1.2) rotate(3deg); }
+        }
+        .badge-shake { animation: badge-shake 0.4s ease; }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0a0a0f; }
+        ::-webkit-scrollbar-thumb { background: #3b1d6e; border-radius: 3px; }
+
+        /* Parent pointer arrows */
+        .parent-arrow {
+            stroke: rgba(245,200,66,0.5);
+            stroke-width: 1.5;
+            stroke-dasharray: 4,3;
+            marker-end: url(#arrowhead-gold);
+            fill: none;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-6">
+<div class="max-w-7xl mx-auto space-y-5">
+
+    <!-- ─── HEADER ─── -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-purple-900/50 pb-5">
+        <div>
+            <h1 class="text-4xl md:text-6xl text-yellow-400 title-font drop-shadow-[0_0_12px_rgba(245,200,66,0.6)]">
+                黑帮认老大
+            </h1>
+            <p class="text-slate-400 mt-1 text-sm cn-font">
+                <span class="text-yellow-500 font-bold">算法：</span>并查集 · Union-Find with Path Compression &amp; Rank
+            </p>
+            <p class="text-slate-600 text-xs mt-1">LeetCode 323 · Number of Connected Components · Medium</p>
+        </div>
+        <!-- Input controls -->
+        <div class="glass-card rounded-xl p-3 flex flex-col gap-2 min-w-[240px]">
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-purple-400 w-8">n =</span>
+                <input type="number" id="nInput" value="5" min="1" max="10"
+                    class="w-16 bg-black/40 border border-purple-900/40 rounded px-2 py-1 text-sm text-purple-200 focus:outline-none focus:border-purple-500">
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-purple-400 w-8">E =</span>
+                <input type="text" id="edgesInput" value="0-1,1-2,3-4"
+                    class="flex-1 bg-black/40 border border-purple-900/40 rounded px-2 py-1 text-xs text-purple-200 focus:outline-none focus:border-purple-500 font-mono">
+            </div>
+            <button onclick="resetViz()" class="w-full bg-purple-900 hover:bg-purple-700 text-white rounded-lg py-1.5 text-xs transition-colors border border-purple-500 flex items-center justify-center gap-2">
+                <i data-lucide="rotate-ccw" class="w-3 h-3"></i> 重置 Reset
+            </button>
+        </div>
+    </div>
+
+    <!-- ─── TOP STATS ─── -->
+    <div class="grid grid-cols-3 gap-4">
+        <div class="glass-card rounded-xl p-4 text-center">
+            <div class="text-xs text-purple-400 uppercase tracking-widest mb-1">处理边 / Edge</div>
+            <div id="edgeDisplay" class="text-2xl font-black font-mono text-purple-300">—</div>
+        </div>
+        <div class="glass-card rounded-xl p-4 text-center border-yellow-500/30" style="border-color: rgba(245,200,66,0.3);">
+            <div class="text-xs text-yellow-500 uppercase tracking-widest mb-1">现存帮派 / Gangs</div>
+            <div id="componentsDisplay" class="text-4xl font-black font-mono text-yellow-400 drop-shadow-[0_0_8px_rgba(245,200,66,0.5)]">—</div>
+        </div>
+        <div class="glass-card rounded-xl p-4 text-center">
+            <div class="text-xs text-purple-400 uppercase tracking-widest mb-1">当前操作 / Phase</div>
+            <div id="phaseDisplay" class="text-lg font-bold text-purple-300 font-mono">—</div>
+        </div>
+    </div>
+
+    <!-- ─── MAIN LAYOUT ─── -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+        <!-- LEFT: Graph arena + Log -->
+        <div class="lg:col-span-8 space-y-4">
+
+            <!-- Graph Canvas -->
+            <div class="glass-card rounded-xl relative overflow-hidden" style="height:420px;">
+                <svg id="graphSvg" class="absolute inset-0 w-full h-full" style="z-index:1;">
+                    <defs>
+                        <marker id="arrowhead-gold" markerWidth="8" markerHeight="6" refX="6" refY="3" orient="auto">
+                            <polygon points="0 0, 8 3, 0 6" fill="rgba(245,200,66,0.7)"/>
+                        </marker>
+                        <marker id="arrowhead-green" markerWidth="8" markerHeight="6" refX="6" refY="3" orient="auto">
+                            <polygon points="0 0, 8 3, 0 6" fill="rgba(34,197,94,0.8)"/>
+                        </marker>
+                        <filter id="glow-gold">
+                            <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+                            <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                        </filter>
+                    </defs>
+                    <g id="edgesGroup"></g>
+                    <g id="parentArrowsGroup"></g>
+                    <g id="compressArrowsGroup"></g>
+                </svg>
+                <div id="nodesGroup" class="absolute inset-0" style="z-index:10;"></div>
+                <!-- Floating emoji fx layer -->
+                <div id="fxLayer" class="absolute inset-0 pointer-events-none" style="z-index:20;"></div>
+            </div>
+
+            <!-- Log Box -->
+            <div class="glass-card rounded-xl p-5 min-h-[100px] flex items-start gap-4">
+                <div class="bg-yellow-900/20 p-3 rounded-lg text-yellow-400 shrink-0 border border-yellow-600/30">
+                    <i data-lucide="radio" class="w-5 h-5"></i>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-yellow-600 mb-2 cn-font">帮派通讯 / Gang Radio</h3>
+                    <div id="explanationText" class="text-base leading-relaxed text-slate-200 font-bold log-in">
+                        待命中... / Standby...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: Controls + Tables -->
+        <div class="lg:col-span-4 space-y-4">
+
+            <!-- Playback Controls -->
+            <div class="glass-card rounded-xl p-5 flex justify-center gap-5 items-center">
+                <button onclick="step(-1)" class="p-3 rounded-full hover:bg-white/10 transition-all active:scale-95 text-slate-400 hover:text-white">
+                    <i data-lucide="chevron-left" class="w-6 h-6"></i>
+                </button>
+                <button id="playPauseBtn" onclick="togglePlay()"
+                    class="p-5 rounded-full bg-yellow-600 hover:bg-yellow-500 text-black shadow-[0_0_20px_rgba(245,200,66,0.5)] transition-all active:scale-95 hover:scale-105 border border-yellow-400">
+                    <i data-lucide="play" class="w-7 h-7 fill-current"></i>
+                </button>
+                <button onclick="step(1)" class="p-3 rounded-full hover:bg-white/10 transition-all active:scale-95 text-slate-400 hover:text-white">
+                    <i data-lucide="chevron-right" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <!-- Step counter -->
+            <div class="glass-card rounded-xl p-3 text-center">
+                <div id="stepCounter" class="text-lg font-black font-mono text-slate-400">0 / 0</div>
+            </div>
+
+            <!-- parent[] table -->
+            <div class="glass-card rounded-xl p-4">
+                <div class="text-xs text-yellow-600 uppercase tracking-widest mb-3 cn-font font-bold">👑 parent[] — 谁是我老大</div>
+                <div id="parentTable" class="flex flex-wrap gap-2"></div>
+            </div>
+
+            <!-- rank[] table -->
+            <div class="glass-card rounded-xl p-4">
+                <div class="text-xs text-purple-500 uppercase tracking-widest mb-3 font-bold">🥊 rank[] — 地位（用于合并决策）</div>
+                <div id="rankTable" class="flex flex-wrap gap-2"></div>
+            </div>
+
+            <!-- Legend -->
+            <div class="glass-card rounded-xl p-4 space-y-2 text-xs">
+                <div class="text-slate-500 uppercase tracking-widest mb-2">图例 / Legend</div>
+                <div class="flex items-center gap-2"><span class="text-xl">👑</span><span class="text-yellow-400">老大 (Boss / Root)</span></div>
+                <div class="flex items-center gap-2"><span class="text-xl">🔫</span><span class="text-slate-400">小弟 (Member)</span></div>
+                <div class="flex items-center gap-2"><div class="w-8 h-0.5 bg-yellow-400"></div><span class="text-slate-400">正在处理的边</span></div>
+                <div class="flex items-center gap-2"><div class="w-8 h-0.5 bg-cyan-400 border-dashed"></div><span class="text-slate-400">查族谱路径</span></div>
+                <div class="flex items-center gap-2"><div class="w-8 h-0.5 bg-green-400 border-dashed"></div><span class="text-slate-400">路径压缩后直达</span></div>
+                <div class="flex items-center gap-2"><span class="text-xl">💥</span><span class="text-slate-400">帮派合并</span></div>
+                <div class="flex items-center gap-2"><span class="text-xl">🤝</span><span class="text-slate-400">已是同门，略过</span></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+let steps = [], currentStepIndex = 0, isPlaying = false, playInterval;
+let n = 5, edges = [], nodePositions = [];
+let prevParent = null; // track changes for table flash
+
+// ─── Algorithm ───────────────────────────────────────────────────────────────
+function buildUnionFind(n) {
+    return {
+        parent: Array.from({length: n}, (_, i) => i),
+        rank:   new Array(n).fill(0)
+    };
+}
+
+function findSteps(x, parent, steps) {
+    const chain = [];
+    let cur = x;
+    while (parent[cur] !== cur) { chain.push(cur); cur = parent[cur]; }
+    const root = cur;
+    chain.push(root);
+
+    steps.push({ role: 'find-trace', traceChain: [...chain], root, target: x });
+
+    const compressed = [];
+    let node = x;
+    while (parent[node] !== root) {
+        const next = parent[node];
+        parent[node] = root;
+        compressed.push(node);
+        node = next;
+    }
+    if (compressed.length > 0)
+        steps.push({ role: 'find-compress', compressedNodes: [...compressed], root, target: x });
+
+    return root;
+}
+
+function generateSteps(n, edges) {
+    const allSteps = [];
+    if (n === 0) {
+        allSteps.push({ role:'finish', parent:[], rank:[], components:0, activeEdge:null,
+            traceChain:[], compressedNodes:[], mergeFrom:null, mergeTo:null,
+            description:'<div>n=0，无成员。</div>' });
+        return allSteps;
+    }
+
+    const { parent, rank } = buildUnionFind(n);
+    let components = n;
+
+    allSteps.push({ role:'init', parent:[...parent], rank:[...rank], components,
+        activeEdge:null, traceChain:[], compressedNodes:[], mergeFrom:null, mergeTo:null,
+        description:`<div class="cn-font">🔫 江湖初开。<strong>${n}</strong> 名独行侠，各自称霸。现有 <strong class="text-yellow-400">${components}</strong> 个独立帮派。</div>
+                     <div class="text-sm opacity-50 mt-1 font-normal">World begins. ${n} lone wolves. ${components} independent gangs.</div>`
+    });
+
+    for (const [u, v] of edges) {
+        // find u
+        const fa = [];
+        const rootU = findSteps(u, parent, fa);
+        for (const fs of fa) {
+            const isTrace = fs.role === 'find-trace';
+            allSteps.push({
+                ...fs,
+                parent:[...parent], rank:[...rank], components,
+                activeEdge:[u,v], compressedNodes: fs.compressedNodes||[], mergeFrom:null, mergeTo:null,
+                description: isTrace
+                    ? `<div class="cn-font">🔍 查族谱：<span class="text-orange-400 font-bold">${u}</span> 的老大是谁？沿 parent 链：${fs.traceChain.join(' → ')}。根 = <strong class="text-yellow-400">${fs.root}</strong>。</div>
+                       <div class="text-sm opacity-50 mt-1 font-normal">find(${u}): trace chain ${fs.traceChain.join('→')}. Root = ${fs.root}.</div>`
+                    : `<div class="cn-font">🏃→👑 路径压缩！<span class="text-green-400 font-bold">[${fs.compressedNodes.join(',')}]</span> 跳过中间人，直接效忠老大 <strong class="text-yellow-400">${fs.root}</strong>！</div>
+                       <div class="text-sm opacity-50 mt-1 font-normal">Path compress: [${fs.compressedNodes.join(',')}] → directly point to boss ${fs.root}.</div>`
+            });
+        }
+
+        // find v
+        const fb = [];
+        const rootV = findSteps(v, parent, fb);
+        for (const fs of fb) {
+            const isTrace = fs.role === 'find-trace';
+            allSteps.push({
+                ...fs,
+                parent:[...parent], rank:[...rank], components,
+                activeEdge:[u,v], compressedNodes:fs.compressedNodes||[], mergeFrom:null, mergeTo:null,
+                description: isTrace
+                    ? `<div class="cn-font">🔍 查族谱：<span class="text-orange-400 font-bold">${v}</span> 的老大是谁？沿 parent 链：${fs.traceChain.join(' → ')}。根 = <strong class="text-yellow-400">${fs.root}</strong>。</div>
+                       <div class="text-sm opacity-50 mt-1 font-normal">find(${v}): trace chain ${fs.traceChain.join('→')}. Root = ${fs.root}.</div>`
+                    : `<div class="cn-font">🏃→👑 路径压缩！<span class="text-green-400 font-bold">[${fs.compressedNodes.join(',')}]</span> 跳过中间人，直接效忠老大 <strong class="text-yellow-400">${fs.root}</strong>！</div>
+                       <div class="text-sm opacity-50 mt-1 font-normal">Path compress: [${fs.compressedNodes.join(',')}] → directly point to boss ${fs.root}.</div>`
+            });
+        }
+
+        if (rootU === rootV) {
+            allSteps.push({
+                role:'union-skip', parent:[...parent], rank:[...rank], components,
+                activeEdge:[u,v], traceChain:[], compressedNodes:[], mergeFrom:null, mergeTo:null,
+                description:`<div class="cn-font">🤝 兄弟！ ${u} 和 ${v} 的老大都是 <strong class="text-green-400">${rootU}</strong>，早是一家人！此边略过。</div>
+                             <div class="text-sm opacity-50 mt-1 font-normal">Same gang! Both ${u} & ${v} report to ${rootU}. Skip union.</div>`
+            });
+        } else {
+            let boss, kneeler;
+            if (rank[rootU] >= rank[rootV]) {
+                parent[rootV] = rootU;
+                boss = rootU; kneeler = rootV;
+                if (rank[rootU] === rank[rootV]) rank[rootU]++;
+            } else {
+                parent[rootU] = rootV;
+                boss = rootV; kneeler = rootU;
+            }
+            components--;
+
+            allSteps.push({
+                role:'union-merge', parent:[...parent], rank:[...rank], components,
+                activeEdge:[u,v], traceChain:[], compressedNodes:[],
+                mergeFrom:kneeler, mergeTo:boss,
+                description:`<div class="cn-font">💥 帮派兼并！老大 <span class="text-red-400 font-bold">${kneeler}</span> 😤 俯首称臣，跪服于 <span class="text-yellow-400 font-bold">${boss}</span> 👑 脚下！剩余 <strong class="text-yellow-300">${components}</strong> 个帮派。</div>
+                             <div class="text-sm opacity-50 mt-1 font-normal">Merger! Boss ${kneeler} kneels to ${boss}. Gangs remaining: ${components}.</div>`
+            });
+        }
+    }
+
+    allSteps.push({
+        role:'finish', parent:[...parent], rank:[...rank], components,
+        activeEdge:null, traceChain:[], compressedNodes:[], mergeFrom:null, mergeTo:null,
+        description:`<div class="cn-font">🎖️ 天下已定！江湖共有 <strong class="text-yellow-400 text-2xl">${components}</strong> 个帮派称霸。</div>
+                     <div class="text-sm opacity-50 mt-1 font-normal">World order established. ${components} gang(s) remain.</div>`
+    });
+
+    return allSteps;
+}
+
+// ─── Layout — circular / force ────────────────────────────────────────────────
+function computeNodePositions(numNodes, W, H) {
+    const positions = [];
+    const cx = W / 2, cy = H / 2;
+    const rx = Math.min(W, H) * 0.36, ry = Math.min(W, H) * 0.33;
+    for (let i = 0; i < numNodes; i++) {
+        const angle = (2 * Math.PI * i / numNodes) - Math.PI / 2;
+        positions.push({ x: cx + rx * Math.cos(angle), y: cy + ry * Math.sin(angle) });
+    }
+    return positions;
+}
+
+// ─── Rendering ────────────────────────────────────────────────────────────────
+function getBossOf(parent, i) {
+    let c = i;
+    while (parent[c] !== c) c = parent[c];
+    return c;
+}
+
+function render() {
+    const state = steps[currentStepIndex];
+    const svg   = document.getElementById('graphSvg');
+    const W = svg.clientWidth || 600;
+    const H = svg.clientHeight || 420;
+    nodePositions = computeNodePositions(n, W, H);
+
+    renderEdges(state, W, H);
+    renderParentArrows(state, W, H);
+    renderNodes(state);
+    renderTables(state);
+    updateStats(state);
+    spawnFx(state);
+    updateIcons();
+}
+
+function renderEdges(state, W, H) {
+    const g = document.getElementById('edgesGroup');
+    g.innerHTML = '';
+    const processedEdges = steps.slice(0, currentStepIndex + 1)
+        .filter(s => s.role === 'union-merge' || s.role === 'union-skip')
+        .map(s => s.activeEdge);
+
+    for (const [u, v] of edges) {
+        const pu = nodePositions[u], pv = nodePositions[v];
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', pu.x); line.setAttribute('y1', pu.y);
+        line.setAttribute('x2', pv.x); line.setAttribute('y2', pv.y);
+
+        const isActive = state.activeEdge && state.activeEdge[0] === u && state.activeEdge[1] === v;
+        const isMerged = processedEdges.some(e => e && e[0]===u && e[1]===v);
+        const isSkip   = state.role === 'union-skip' && isActive;
+
+        line.setAttribute('class', isSkip ? 'edge-skip' : isActive ? 'edge-active' : isMerged ? 'edge-merged' : 'edge-line');
+        g.appendChild(line);
+    }
+}
+
+function renderParentArrows(state, W, H) {
+    const g = document.getElementById('parentArrowsGroup');
+    g.innerHTML = '';
+    const ca = document.getElementById('compressArrowsGroup');
+    ca.innerHTML = '';
+
+    for (let i = 0; i < n; i++) {
+        if (state.parent[i] === i) continue; // root — no arrow
+        const from = nodePositions[i];
+        const to   = nodePositions[state.parent[i]];
+
+        // Shorten arrow so it doesn't overlap circles (radius ~35px)
+        const dx = to.x - from.x, dy = to.y - from.y;
+        const len = Math.sqrt(dx*dx + dy*dy);
+        const r = 36;
+        const sx = from.x + (dx/len)*r, sy = from.y + (dy/len)*r;
+        const ex = to.x   - (dx/len)*r, ey = to.y   - (dy/len)*r;
+
+        const isCompressed = state.compressedNodes && state.compressedNodes.includes(i);
+        const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        arrow.setAttribute('x1', sx); arrow.setAttribute('y1', sy);
+        arrow.setAttribute('x2', ex); arrow.setAttribute('y2', ey);
+
+        if (isCompressed) {
+            arrow.setAttribute('stroke', 'rgba(34,197,94,0.8)');
+            arrow.setAttribute('stroke-width', '2');
+            arrow.setAttribute('stroke-dasharray', '5,4');
+            arrow.setAttribute('marker-end', 'url(#arrowhead-green)');
+            arrow.setAttribute('fill', 'none');
+            arrow.style.animation = 'compress-flash 0.8s ease-out';
+            ca.appendChild(arrow);
+        } else {
+            arrow.setAttribute('class', 'parent-arrow');
+            g.appendChild(arrow);
+        }
+    }
+}
+
+function renderNodes(state) {
+    const container = document.getElementById('nodesGroup');
+    container.innerHTML = '';
+
+    for (let i = 0; i < n; i++) {
+        const pos  = nodePositions[i];
+        const boss = getBossOf(state.parent, i);
+        const isBoss = state.parent[i] === i;
+        const isTrace = state.traceChain && state.traceChain.includes(i);
+        const isCompressed = state.compressedNodes && state.compressedNodes.includes(i);
+        const isKneeler = state.mergeFrom === i;
+        const isWinner  = state.mergeTo  === i;
+        const isSameGang = state.role === 'union-skip' &&
+            state.activeEdge && (state.activeEdge[0] === i || state.activeEdge[1] === i);
+
+        const div = document.createElement('div');
+        div.className = 'node-card';
+        div.style.left = `${pos.x - 35}px`;
+        div.style.top  = `${pos.y - 35}px`;
+
+        let extraClass = isBoss ? 'node-boss' : 'node-default';
+        let animClass  = '';
+        if (isWinner)      { extraClass = 'node-merge-win'; animClass = 'victorious'; }
+        else if (isKneeler){ extraClass = 'node-merge-lose'; animClass = 'kneeling'; }
+        else if (isCompressed) extraClass = 'node-compressed';
+        else if (isTrace)  extraClass = 'node-trace';
+        else if (isSameGang) extraClass = 'node-same-gang';
+        if (isBoss && !isKneeler && !isWinner) animClass = 'boss-pulse';
+
+        div.className = `node-card ${extraClass} ${animClass}`;
+
+        const emoji = isWinner ? '👑💥' : isKneeler ? '😤👇' : isCompressed ? '🏃' : isBoss ? '👑' : '🔫';
+        const parentLabel = state.parent[i] === i ? '<span style="color:#f5c842">root</span>' : `p:${state.parent[i]}`;
+
+        div.innerHTML = `
+            <div class="text-xl leading-none mb-0.5">${emoji}</div>
+            <div class="font-bold text-sm" style="color:${isBoss?'#f5c842':'#c4b5fd'}">${i}</div>
+            <div class="text-[9px] opacity-60 leading-none">${parentLabel}</div>`;
+
+        container.appendChild(div);
+    }
+}
+
+function renderTables(state) {
+    const pTable = document.getElementById('parentTable');
+    const rTable = document.getElementById('rankTable');
+    pTable.innerHTML = '';
+    rTable.innerHTML = '';
+
+    for (let i = 0; i < n; i++) {
+        const changed = prevParent && prevParent[i] !== state.parent[i];
+
+        const pc = document.createElement('div');
+        pc.className = `flex flex-col items-center gap-0.5 ${changed ? 'cell-flash' : ''}`;
+        const isBoss = state.parent[i] === i;
+        pc.innerHTML = `
+            <div class="text-[9px] text-slate-500">${i}</div>
+            <div class="px-2 py-1 rounded text-xs font-bold font-mono
+                ${isBoss ? 'bg-yellow-900/60 text-yellow-400 border border-yellow-600' : 'bg-purple-900/40 text-purple-300 border border-purple-800'}"
+                style="${changed?'animation:cell-flash 0.6s ease':''}"
+            >${state.parent[i]}</div>`;
+        pTable.appendChild(pc);
+
+        const rc = document.createElement('div');
+        rc.className = 'flex flex-col items-center gap-0.5';
+        rc.innerHTML = `
+            <div class="text-[9px] text-slate-500">${i}</div>
+            <div class="px-2 py-1 rounded text-xs font-bold font-mono bg-slate-800/60 text-slate-300 border border-slate-700">${state.rank[i]}</div>`;
+        rTable.appendChild(rc);
+    }
+
+    prevParent = [...state.parent];
+}
+
+function updateStats(state) {
+    document.getElementById('componentsDisplay').textContent = state.components;
+    document.getElementById('stepCounter').textContent = `${currentStepIndex+1} / ${steps.length}`;
+
+    const phaseMap = {
+        'init': '🔫 初始化',
+        'find-trace': '🔍 查族谱',
+        'find-compress': '🏃 路径压缩',
+        'union-skip': '🤝 已同门',
+        'union-merge': '💥 兼并！',
+        'finish': '🎖️ 天下定'
+    };
+    document.getElementById('phaseDisplay').textContent = phaseMap[state.role] || state.role;
+
+    if (state.activeEdge) {
+        document.getElementById('edgeDisplay').textContent = `${state.activeEdge[0]} — ${state.activeEdge[1]}`;
+    } else {
+        document.getElementById('edgeDisplay').textContent = '—';
+    }
+
+    document.getElementById('explanationText').className = 'text-base leading-relaxed text-slate-200 font-bold log-in';
+    document.getElementById('explanationText').innerHTML = state.description;
+    void document.getElementById('explanationText').offsetWidth; // re-trigger animation
+}
+
+function spawnFx(state) {
+    const layer = document.getElementById('fxLayer');
+    layer.innerHTML = '';
+
+    if (state.role === 'union-merge' && state.mergeFrom !== null && state.mergeTo !== null) {
+        const pos = nodePositions[state.mergeTo];
+        if (!pos) return;
+        const emojis = ['💥','🔥','✨','👑','🎊'];
+        emojis.forEach((em, i) => {
+            const angle = (i / emojis.length) * 2 * Math.PI;
+            const r = 55 + Math.random() * 20;
+            const span = document.createElement('div');
+            span.textContent = em;
+            span.className = 'absolute text-2xl emoji-pop';
+            span.style.left = `${pos.x + r * Math.cos(angle) - 12}px`;
+            span.style.top  = `${pos.y + r * Math.sin(angle) - 12}px`;
+            span.style.animationDelay = `${i * 80}ms`;
+            layer.appendChild(span);
+        });
+    } else if (state.role === 'union-skip') {
+        const ae = state.activeEdge;
+        if (!ae) return;
+        const midX = (nodePositions[ae[0]].x + nodePositions[ae[1]].x) / 2;
+        const midY = (nodePositions[ae[0]].y + nodePositions[ae[1]].y) / 2;
+        const span = document.createElement('div');
+        span.textContent = '🤝✅';
+        span.className = 'absolute text-2xl emoji-pop';
+        span.style.left = `${midX - 20}px`;
+        span.style.top  = `${midY - 20}px`;
+        layer.appendChild(span);
+    } else if (state.role === 'find-compress') {
+        (state.compressedNodes || []).forEach(nodeId => {
+            const pos = nodePositions[nodeId];
+            if (!pos) return;
+            const span = document.createElement('div');
+            span.textContent = '⚡';
+            span.className = 'absolute text-xl emoji-pop';
+            span.style.left = `${pos.x - 10}px`;
+            span.style.top  = `${pos.y - 45}px`;
+            layer.appendChild(span);
+        });
+    } else if (state.role === 'finish') {
+        const cx = (document.getElementById('graphSvg').clientWidth || 600) / 2;
+        const cy = (document.getElementById('graphSvg').clientHeight || 420) / 2;
+        ['🎖️','🏆','👑','🎉','✨'].forEach((em, i) => {
+            const span = document.createElement('div');
+            span.textContent = em;
+            span.className = 'absolute text-3xl emoji-pop';
+            span.style.left = `${cx - 80 + i * 40}px`;
+            span.style.top  = `${cy - 20}px`;
+            span.style.animationDelay = `${i * 120}ms`;
+            layer.appendChild(span);
+        });
+    }
+}
+
+// ─── Controls ─────────────────────────────────────────────────────────────────
+function step(dir) {
+    const next = currentStepIndex + dir;
+    if (next >= 0 && next < steps.length) { currentStepIndex = next; render(); }
+    else if (next >= steps.length) stop();
+}
+function togglePlay() { isPlaying ? stop() : start(); }
+function start() {
+    if (currentStepIndex >= steps.length - 1) currentStepIndex = 0;
+    isPlaying = true;
+    document.getElementById('playPauseBtn').innerHTML = `<i data-lucide="pause" class="w-7 h-7 fill-current"></i>`;
+    updateIcons();
+    playInterval = setInterval(() => step(1), 1800);
+}
+function stop() {
+    isPlaying = false;
+    clearInterval(playInterval);
+    document.getElementById('playPauseBtn').innerHTML = `<i data-lucide="play" class="w-7 h-7 fill-current"></i>`;
+    updateIcons();
+}
+
+function parseEdges(str) {
+    return str.split(',').map(s => {
+        const parts = s.trim().split(/[-–]/);
+        if (parts.length !== 2) return null;
+        const u = parseInt(parts[0]), v = parseInt(parts[1]);
+        return (!isNaN(u) && !isNaN(v)) ? [u, v] : null;
+    }).filter(Boolean);
+}
+
+function resetViz() {
+    stop();
+    prevParent = null;
+    n = Math.max(1, parseInt(document.getElementById('nInput').value) || 5);
+    edges = parseEdges(document.getElementById('edgesInput').value);
+    // Clamp edges to valid node indices
+    edges = edges.filter(([u,v]) => u < n && v < n && u >= 0 && v >= 0);
+    steps = generateSteps(n, edges);
+    currentStepIndex = 0;
+    render();
+}
+
+function updateIcons() { lucide.createIcons(); }
+window.onload = resetViz;
+window.onresize = () => render();
+</script>
+</body>
+</html>
