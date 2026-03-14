@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Search - HARDCORE DEBUGGING 🤬</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Permanent+Marker&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #050505;
+            --panel-bg: rgba(20, 20, 20, 0.9);
+            --border-color: #333;
+            --primary: #00ff66; /* Neon Green for Hacker feel */
+            --danger: #ff0055; /* Aggressive Red */
+            --info: #00f2ff;
+            --text-dim: #888;
+            --cell-size: 55px;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: #ccc;
+            font-family: 'JetBrains Mono', monospace;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h1 {
+            font-family: 'Permanent Marker', cursive;
+            color: var(--danger);
+            font-size: 3rem;
+            margin: 0 0 10px 0;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            text-shadow: 2px 2px 0px var(--info);
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 350px 1fr 350px;
+            gap: 20px;
+            width: 100%;
+            max-width: 1600px;
+        }
+
+        /* --- Left: Call Stack --- */
+        .sidebar {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            height: 700px;
+        }
+
+        .panel-header {
+            color: var(--info);
+            font-size: 0.9rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .stack-list {
+            flex-grow: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column-reverse;
+            gap: 5px;
+        }
+
+        .stack-item {
+            font-size: 0.8rem;
+            padding: 5px 8px;
+            background: rgba(255, 255, 255, 0.03);
+            border-left: 3px solid var(--danger);
+            animation: slideIn 0.2s ease-out;
+            white-space: nowrap;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(-10px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* --- Center: Grid --- */
+        .viz-center {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .controls {
+            background: var(--panel-bg);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+            width: 100%;
+            justify-content: center;
+            align-items: center;
+        }
+
+        input[type="text"] {
+            background: #000;
+            border: 1px solid var(--info);
+            color: var(--info);
+            padding: 8px;
+            border-radius: 4px;
+            font-family: inherit;
+            width: 120px;
+        }
+
+        button {
+            background: #111;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+            padding: 8px 12px;
+            cursor: pointer;
+            font-weight: bold;
+            text-transform: uppercase;
+            border-radius: 4px;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.75rem;
+        }
+
+        button:hover { background: var(--primary); color: #000; }
+        button:disabled { opacity: 0.3; cursor: not-allowed; }
+        
+        #pauseBtn { border-color: #ff9900; color: #ff9900; }
+        #pauseBtn:hover { background: #ff9900; color: #000; }
+        #stepBtn { border-color: #00f2ff; color: #00f2ff; }
+        #stepBtn:hover { background: #00f2ff; color: #000; }
+
+        .grid-wrapper {
+            position: relative;
+            padding: 40px;
+            background: #111;
+            border-radius: 12px;
+            box-shadow: 0 0 50px rgba(0, 255, 102, 0.1);
+        }
+
+        .grid-container {
+            display: grid;
+            gap: 5px;
+        }
+
+        /* Coordinates */
+        .coord-x { position: absolute; top: 10px; left: 45px; display: flex; gap: 5px; }
+        .coord-y { position: absolute; top: 45px; left: 10px; display: flex; flex-direction: column; gap: 5px; }
+        .coord-label { width: var(--cell-size); text-align: center; color: var(--text-dim); font-size: 0.8rem; }
+        .coord-y .coord-label { height: var(--cell-size); display: flex; align-items: center; justify-content: center; }
+
+        .cell {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            background: #000;
+            border: 1px solid #222;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: #666;
+            position: relative;
+            transition: all 0.1s;
+        }
+
+        .visited-mark, .history-mark {
+            position: absolute;
+            font-size: 0.6rem;
+            display: none;
+        }
+
+        .visited-mark {
+            top: 2px;
+            right: 2px;
+            color: var(--info);
+            z-index: 5;
+        }
+
+        .history-mark {
+            bottom: 2px;
+            right: 2px;
+            color: rgba(255, 255, 255, 0.2);
+            z-index: 4;
+        }
+
+        .cell.on-path .visited-mark { display: block; }
+        .cell.explored .history-mark { display: block; }
+
+        .cell.active { 
+            background: var(--info); 
+            color: #000; 
+            border-color: #fff; 
+            transform: scale(1.15); 
+            z-index: 20; 
+            box-shadow: 0 0 15px var(--info);
+        }
+        .cell.scanning { 
+            border: 2px solid var(--primary); 
+            background: rgba(0, 255, 102, 0.2); 
+            color: var(--primary);
+        }
+        .cell.on-path { 
+            background: var(--danger); 
+            color: #fff; 
+            border-color: #fff; 
+            box-shadow: 0 0 10px var(--danger);
+        }
+        .cell.visited { 
+            opacity: 0.5; 
+            border: 1px dashed var(--info); 
+            background: rgba(0, 242, 255, 0.05);
+        }
+        .cell.backtracked { 
+            border: 1px solid var(--danger); 
+            opacity: 0.8;
+            background: rgba(255, 0, 85, 0.05);
+        }
+        .cell.found {
+            background: var(--primary) !important;
+            color: #000 !important;
+            border-color: #fff !important;
+            box-shadow: 0 0 30px var(--primary);
+            z-index: 50;
+            transform: scale(1.1);
+            animation: pulse 0.5s infinite alternate;
+        }
+
+        @keyframes pulse { from { filter: brightness(1); } to { filter: brightness(1.5); } }
+
+        /* --- Right: Stats --- */
+        .stats-panel { display: flex; flex-direction: column; gap: 20px; }
+        .stat-card { background: var(--panel-bg); border: 1px solid var(--border-color); padding: 15px; border-radius: 8px; }
+        .stat-value { font-size: 1.8rem; color: var(--danger); font-weight: bold; }
+        .stat-label { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; }
+
+        .decision-box { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-top: 10px; }
+        .dir-slot { height: 40px; background: #111; border: 1px solid #333; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; }
+        .dir-center { background: var(--info); color: #000; }
+        .dir-active { border-color: var(--info); color: var(--info); }
+        .dir-fail { border-color: var(--danger); color: var(--danger); }
+        .dir-success { border-color: var(--primary); color: var(--primary); }
+
+        .progress-bar { display: flex; gap: 4px; margin-top: 20px; }
+        .prog-unit { width: 30px; height: 5px; background: #222; }
+        .prog-unit.done { background: var(--primary); }
+
+        /* --- Narrator --- */
+        .narrator {
+            background: rgba(0, 255, 102, 0.05);
+            border: 1px solid var(--primary);
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            width: 100%;
+            color: var(--primary);
+            font-size: 0.9rem;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            box-shadow: inset 0 0 10px rgba(0, 255, 102, 0.1);
+        }
+
+        /* --- Pseudo-code --- */
+        .code-panel {
+            background: #111;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            line-height: 1.5;
+            color: #aaa;
+            overflow-x: hidden;
+        }
+
+        .code-line {
+            padding: 0 5px;
+            border-left: 2px solid transparent;
+        }
+
+        .code-line.active {
+            background: rgba(0, 242, 255, 0.2);
+            color: var(--info);
+            border-left-color: var(--info);
+        }
+
+        /* --- Legend --- */
+        .legend {
+            margin-top: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            font-size: 0.7rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .legend-box {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+        }
+
+        #overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255, 0, 85, 0.95);
+            z-index: 1000;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Word Search: Hardcore 🤬</h1>
+
+    <div class="main-layout">
+        <!-- Left: Call Stack & Pseudo-code -->
+        <div class="sidebar">
+            <div class="panel-header">
+                <span>Call Stack</span>
+                <span id="stackDepth">Depth: 0</span>
+            </div>
+            <div class="stack-list" id="stackList"></div>
+            
+            <div class="panel-header" style="margin-top:20px">Pseudo-code</div>
+            <div class="code-panel" id="pseudoCode">
+                <div class="code-line" id="code-1">function backtrack(r, c, i):</div>
+                <div class="code-line" id="code-2">&nbsp;&nbsp;if i == word.len: return True</div>
+                <div class="code-line" id="code-3">&nbsp;&nbsp;if OOB or mismatch: return False</div>
+                <div class="code-line" id="code-4">&nbsp;&nbsp;mark (r,c) visited</div>
+                <div class="code-line" id="code-5">&nbsp;&nbsp;for each neighbor (nr, nc):</div>
+                <div class="code-line" id="code-6">&nbsp;&nbsp;&nbsp;&nbsp;if backtrack(nr, nc, i+1):</div>
+                <div class="code-line" id="code-7">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return True</div>
+                <div class="code-line" id="code-8">&nbsp;&nbsp;unmark (r,c) visited</div>
+                <div class="code-line" id="code-9">&nbsp;&nbsp;return False</div>
+            </div>
+        </div>
+
+        <!-- Center: Grid -->
+        <div class="viz-center">
+            <div class="narrator" id="narrator">
+                System Initialized. Ready to search for some bullshit... 🤬
+            </div>
+            <div class="controls">
+                <input type="text" id="targetInput" value="FUCKYOU">
+                <button id="runBtn" style="flex:2"><span>▶️</span> Run</button>
+                <div style="display: flex; gap: 5px;">
+                    <button id="backBtn" class="control-btn" title="Step Backward" disabled><span>⏪</span></button>
+                    <button id="pauseBtn" disabled><span>⏸</span> Pause</button>
+                    <button id="stepBtn" disabled><span>⏭</span> Step</button>
+                </div>
+                <button id="modeBtn" style="border-color: var(--danger); color: var(--danger);">🤬 FUCK YOU</button>
+                <button id="resetBtn">Reset</button>
+                <div style="display:flex; flex-direction:column; align-items:center;">
+                    <label style="font-size:0.6rem; color:var(--text-dim)">SPEED</label>
+                    <input type="range" id="speedInput" min="10" max="1000" value="300" style="width:80px">
+                </div>
+            </div>
+
+            <div class="grid-wrapper">
+                <div class="coord-x" id="coordX"></div>
+                <div class="coord-y" id="coordY"></div>
+                <div class="grid-container" id="grid"></div>
+            </div>
+
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+
+        <!-- Right: Stats -->
+        <div class="stats-panel">
+            <div class="stat-card">
+                <div class="panel-header">Decision Matrix</div>
+                <div class="decision-box">
+                    <div class="dir-slot" id="dir-NW"></div>
+                    <div class="dir-slot" id="dir-N">↑</div>
+                    <div class="dir-slot" id="dir-NE"></div>
+                    <div class="dir-slot" id="dir-W">←</div>
+                    <div class="dir-slot dir-center" id="dir-C">?</div>
+                    <div class="dir-slot" id="dir-E">→</div>
+                    <div class="dir-slot" id="dir-SW"></div>
+                    <div class="dir-slot" id="dir-S">↓</div>
+                    <div class="dir-slot" id="dir-SE"></div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="panel-header">Hardcore Stats & Legend</div>
+                
+                <div style="margin-bottom: 20px;">
+                    <div class="panel-header" style="font-size: 0.7rem; color: var(--text-dim); border: none;">Pruning Metrics</div>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span class="stat-label">Out of Bounds</span>
+                            <span class="stat-value" id="count-oob" style="font-size:1.2rem">0</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span class="stat-label">Already Visited</span>
+                            <span class="stat-value" id="count-visited" style="color: var(--info); font-size:1.2rem">0</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span class="stat-label">Mismatch</span>
+                            <span class="stat-value" id="count-mismatch" style="color: var(--text-dim); font-size:1.2rem">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel-header" style="font-size: 0.7rem; color: var(--text-dim); border: none;">Visual Legend</div>
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-box" style="background:var(--info)"></div><span>Focus Cell</span></div>
+                    <div class="legend-item"><div class="legend-box" style="background:var(--danger)"></div><span>👣 Active Path</span></div>
+                    <div class="legend-item"><div class="legend-box" style="border:1px dashed var(--info)"></div><span>🐾 Traversed</span></div>
+                    <div class="legend-item"><div class="legend-box" style="background:var(--primary)"></div><span>Success</span></div>
+                    <div class="legend-item"><div class="legend-box" style="border:1px solid var(--primary)"></div><span>Scanning</span></div>
+                    <div class="legend-item"><div class="legend-box" style="border:1px solid var(--danger)"></div><span>Failed Route</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="overlay">
+        <h2 style="font-family: 'Permanent Marker'; font-size: 5rem; margin: 0;">FUCK YOU!!!</h2>
+        <p>FOUND THE WORD IN THE CHAOS 🤬🔥</p>
+        <button onclick="document.getElementById('overlay').style.display='none'" 
+                style="background: white; color: black; border: none; margin-top: 20px; padding: 10px 20px; font-weight: bold; cursor: pointer;">Whatever...</button>
+    </div>
+
+    <script>
+        const GRID_ROWS = 7;
+        const GRID_COLS = 8;
+        let board = [];
+        let visited = new Set();
+        let isRunning = false;
+        let isPaused = true;
+        let speed = 300;
+        let stack = [];
+        let stats = { oob: 0, visited: 0, mismatch: 0 };
+        let history = []; 
+        let historyIndex = -1;
+        let stepResolver = null;
+
+        const gridEl = document.getElementById('grid');
+        const stackList = document.getElementById('stackList');
+        const stackDepthEl = document.getElementById('stackDepth');
+        const runBtn = document.getElementById('runBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const stepBtn = document.getElementById('stepBtn');
+        const backBtn = document.getElementById('backBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const modeBtn = document.getElementById('modeBtn');
+        const narratorEl = document.getElementById('narrator');
+
+        function reset(full = true) {
+            isRunning = false;
+            isPaused = true;
+            visited.clear();
+            stack = [];
+            stats = { oob: 0, visited: 0, mismatch: 0 };
+            history = [];
+            historyIndex = -1;
+            
+            updateStats();
+            renderStack();
+            updateProgress(0);
+            if (full) initBoard();
+            else document.querySelectorAll('.cell').forEach(c => c.className = 'cell');
+            
+            document.querySelectorAll('.code-line').forEach(l => l.classList.remove('active'));
+            document.getElementById('dir-C').textContent = '?';
+            document.querySelectorAll('.dir-slot').forEach(d => {
+                d.className = 'dir-slot';
+                if (d.id === 'dir-C') d.classList.add('dir-center');
+                else d.textContent = d.id.replace('dir-', '');
+            });
+            setNarrator("等待启动... (Waiting for input)");
+            runBtn.innerHTML = '<span>▶️</span> Run';
+            runBtn.disabled = false;
+            pauseBtn.disabled = true;
+            stepBtn.disabled = true;
+            backBtn.disabled = true;
+            pauseBtn.innerHTML = "<span>⏸</span> Pause";
+        }
+
+        function initBoard(customBoard = null) {
+            board = customBoard || generateBoard();
+            gridEl.style.gridTemplateColumns = `repeat(${board[0].length}, var(--cell-size))`;
+            gridEl.innerHTML = '';
+            
+            document.getElementById('coordX').innerHTML = board[0].map((_, i) => `<div class="coord-label">${i}</div>`).join('');
+            document.getElementById('coordY').innerHTML = board.map((_, i) => `<div class="coord-label">${i}</div>`).join('');
+
+            for(let r=0; r<board.length; r++) {
+                for(let c=0; c<board[0].length; c++) {
+                    const el = document.createElement('div');
+                    el.className = 'cell';
+                    el.id = `cell-${r}-${c}`;
+                    el.innerHTML = `${board[r][c]}<span class="visited-mark">👣</span><span class="history-mark">🐾</span>`;
+                    gridEl.appendChild(el);
+                }
+            }
+            updateProgress(0);
+        }
+
+        function generateBoard() {
+            const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            const b = [];
+            for(let r=0; r<GRID_ROWS; r++) {
+                const row = [];
+                for(let c=0; c<GRID_COLS; c++) row.push(chars[Math.floor(Math.random() * chars.length)]);
+                b.push(row);
+            }
+            return b;
+        }
+
+        function updateProgress(len) {
+            const bar = document.getElementById('progressBar');
+            bar.innerHTML = '';
+            const word = document.getElementById('targetInput').value.toUpperCase();
+            for(let i=0; i<word.length; i++) {
+                const unit = document.createElement('div');
+                unit.className = 'prog-unit' + (i < len ? ' done' : '');
+                bar.appendChild(unit);
+            }
+        }
+
+        // Snapshots the entire UI state
+        function saveState() {
+            const cellStates = {};
+            document.querySelectorAll('.cell').forEach(c => cellStates[c.id] = c.className);
+            const dirStates = {};
+            ['dir-N', 'dir-S', 'dir-W', 'dir-E', 'dir-C'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) dirStates[id] = { class: el.className, text: el.textContent };
+            });
+
+            const snapshot = {
+                stack: JSON.parse(JSON.stringify(stack)),
+                stats: { ...stats },
+                narrator: { text: narratorEl.textContent, color: narratorEl.style.color, border: narratorEl.style.borderColor },
+                pseudoLine: document.querySelector('.code-line.active')?.id || null,
+                cellClasses: cellStates,
+                dirStates: dirStates,
+                progress: document.getElementById('progressBar').innerHTML
+            };
+
+            if (historyIndex < history.length - 1) history = history.slice(0, historyIndex + 1);
+            history.push(snapshot);
+            historyIndex = history.length - 1;
+            backBtn.disabled = historyIndex <= 0;
+        }
+
+        function restoreState(index) {
+            if (index < 0 || index >= history.length) return;
+            const state = history[index];
+            stack = JSON.parse(JSON.stringify(state.stack));
+            renderStack();
+            stats = { ...state.stats };
+            updateStats();
+            narratorEl.textContent = state.narrator.text;
+            narratorEl.style.color = state.narrator.color;
+            narratorEl.style.borderColor = state.narrator.border;
+            document.querySelectorAll('.code-line').forEach(l => l.classList.remove('active'));
+            if (state.pseudoLine) document.getElementById(state.pseudoLine)?.classList.add('active');
+            for (const [id, cls] of Object.entries(state.cellClasses)) document.getElementById(id).className = cls;
+            for (const [id, info] of Object.entries(state.dirStates)) {
+                const el = document.getElementById(id);
+                if (el) { el.className = info.class; el.textContent = info.text; }
+            }
+            document.getElementById('progressBar').innerHTML = state.progress;
+            historyIndex = index;
+            backBtn.disabled = historyIndex <= 0;
+            stepBtn.disabled = false;
+        }
+
+        async function checkPause() {
+            saveState(); 
+            if (!isPaused) return;
+            return new Promise(resolve => { stepResolver = resolve; });
+        }
+
+        const sleep = (ms) => new Promise(res => setTimeout(res, ms));
+
+        function stepBackward() { if (historyIndex > 0) { isPaused = true; restoreState(historyIndex - 1); } }
+        function stepForward() {
+            if (historyIndex < history.length - 1) restoreState(historyIndex + 1);
+            else if (stepResolver) { const res = stepResolver; stepResolver = null; res(); }
+        }
+
+        async function dive(r, c, index) {
+            if (!isRunning) return false;
+
+            const word = document.getElementById('targetInput').value.toUpperCase();
+            
+            // Push to stack BEFORE any check/pause so user sees the intent
+            const callInfo = { id: Date.now() + Math.random(), text: `backtrack(${r},${c},'${word[index] || ''}')`, status: 'active' };
+            stack.push(callInfo);
+            renderStack();
+
+            // First Pause: When entering the cell
+            await checkPause();
+            if (!isPaused) await sleep(speed);
+
+            highlightCode(1);
+            setNarrator(`试图在 [${r},${c}] 匹配字母 '${word[index] || ''}' (Word index: ${index})`);
+
+            const el = document.getElementById(`cell-${r}-${c}`);
+            if (el) {
+                el.classList.remove('backtracked');
+                el.classList.add('active', 'explored'); // Mark as explored permanently
+            }
+            document.getElementById('dir-C').textContent = word[index] || '?';
+
+            // 1. Boundary
+            highlightCode(3);
+            if (r < 0 || r >= board.length || c < 0 || c >= board[0].length) {
+                setNarrator(`[${r},${c}] 越界了 (Out of Bounds)! 跳过。`, 'fail');
+                stats.oob++;
+                updateStats();
+                callInfo.status = 'fail'; renderStack();
+                if (!isPaused) await sleep(speed / 2); // Show red/fail state briefly in Run mode
+                await checkPause();
+                await popStack();
+                if (el) el.classList.remove('active');
+                return false;
+            }
+
+            // 2. Mismatch
+            if (board[r][c] !== word[index]) {
+                setNarrator(`[${r},${c}] 字母是 '${board[r][c]}'，我们要找 '${word[index]}'。不匹配！`, 'fail');
+                stats.mismatch++;
+                updateStats();
+                callInfo.status = 'fail'; renderStack();
+                if (el) { el.classList.add('scanning'); }
+                if (!isPaused) await sleep(speed / 2); // Delay to see the "scanning" color
+                await checkPause();
+                if (el) { el.classList.remove('active', 'scanning'); }
+                await popStack();
+                return false;
+            }
+
+            // 3. Cycle
+            if (visited.has(`${r},${c}`)) {
+                setNarrator(`[${r},${c}] 已经在这个路径里用过了。不能重复使用！`, 'fail');
+                stats.visited++;
+                updateStats();
+                callInfo.status = 'fail'; renderStack();
+                if (el) { el.classList.add('visited'); }
+                if (!isPaused) await sleep(speed / 2);
+                await checkPause();
+                if (el) { el.classList.remove('active'); }
+                await popStack();
+                return false;
+            }
+
+            // Valid char found
+            highlightCode(4);
+            setNarrator(`✅ 稳！在 [${r},${c}] 锁定了 '${word[index]}'!`);
+            callInfo.status = 'match'; renderStack();
+            visited.add(`${r},${c}`);
+            if (el) {
+                el.classList.remove('active');
+                el.classList.add('on-path');
+            }
+            updateProgress(index + 1);
+            
+            highlightCode(2);
+            if (index === word.length - 1) {
+                setNarrator(`🎉 FUCK YES! 整个单词 "${word}" 都找齐了！`);
+                if (el) el.classList.add('found');
+                return true;
+            }
+
+            // Pause before exploring neighbors
+            await checkPause();
+
+            const dr = [-1, 1, 0, 0];
+            const dc = [0, 0, -1, 1];
+            const ds = ["北", "南", "西", "东"];
+            const ids = ['dir-N', 'dir-S', 'dir-W', 'dir-E'];
+
+            highlightCode(5);
+            for (let i = 0; i < 4; i++) {
+                setNarrator(`从 [${r},${c}] 往${ds[i]}边寻找下一个字母...`);
+                const dirEl = document.getElementById(ids[i]);
+                dirEl.classList.add('dir-active');
+                
+                highlightCode(6);
+                if (await dive(r + dr[i], c + dc[i], index + 1)) {
+                    highlightCode(7);
+                    dirEl.classList.remove('dir-active');
+                    dirEl.classList.add('dir-success');
+                    if (el) el.classList.add('found'); // Propagation
+                    return true;
+                }
+                
+                dirEl.classList.remove('dir-active');
+                dirEl.classList.add('dir-fail');
+                if (!isPaused) await sleep(speed / 4);
+                dirEl.classList.remove('dir-fail');
+            }
+
+            // Backtrack
+            highlightCode(8);
+            setNarrator(`❌ [${r},${c}] 的所有方向都死路一条。回溯！`, 'fail');
+            callInfo.status = 'backtrack'; renderStack();
+            await checkPause();
+
+            if (el) {
+                el.classList.remove('on-path', 'found');
+                el.classList.add('backtracked'); // Add backtracked permanent visual
+            }
+            visited.delete(`${r},${c}`);
+            updateProgress(index);
+            await popStack();
+            highlightCode(9);
+            return false;
+        }
+
+        function setNarrator(msg, status = 'info') {
+            if (!narratorEl) return;
+            narratorEl.textContent = msg;
+            narratorEl.style.color = status === 'fail' ? 'var(--danger)' : 'var(--primary)';
+            narratorEl.style.borderColor = status === 'fail' ? 'var(--danger)' : 'var(--primary)';
+        }
+
+        function highlightCode(line) {
+            document.querySelectorAll('.code-line').forEach(l => l.classList.remove('active'));
+            document.getElementById(`code-${line}`)?.classList.add('active');
+        }
+
+        function renderStack() {
+            if (!stackDepthEl || !stackList) return;
+            stackDepthEl.textContent = `Depth: ${stack.length}`;
+            stackList.innerHTML = stack.map(item => {
+                let color = 'var(--danger)', label = '';
+                if (item.status === 'match') { color = 'var(--primary)'; label = ' [MATCH]'; }
+                else if (item.status === 'fail') { color = '#555'; label = ' [FAIL]'; }
+                else if (item.status === 'backtrack') { color = 'orange'; label = ' [BACKTRACK]'; }
+                return `<div class="stack-item" style="border-left-color: ${color}">${item.text}${label}</div>`;
+            }).join('');
+            stackList.scrollTop = stackList.scrollHeight;
+        }
+
+        function updateStats() {
+            const oobEl = document.getElementById('count-oob');
+            const visitedEl = document.getElementById('count-visited');
+            const mismatchEl = document.getElementById('count-mismatch');
+            if (oobEl) oobEl.textContent = stats.oob;
+            if (visitedEl) visitedEl.textContent = stats.visited;
+            if (mismatchEl) mismatchEl.textContent = stats.mismatch;
+        }
+
+        async function popStack() { stack.pop(); renderStack(); }
+
+        async function start() {
+            if (isRunning) return;
+            reset(false); isRunning = true;
+            runBtn.disabled = true; pauseBtn.disabled = false;
+            for (let r = 0; r < board.length; r++) {
+                for (let c = 0; c < board[0].length; c++) {
+                    if (await dive(r, c, 0)) { document.getElementById('overlay').style.display = 'flex'; stop(); return; }
+                }
+            }
+            stop(); alert("NOT FOUND 🤬");
+        }
+
+        function stop() { isRunning = false; runBtn.disabled = false; pauseBtn.disabled = true; stepBtn.disabled = true; isPaused = false; }
+        function togglePause() {
+            isPaused = !isPaused; pauseBtn.innerHTML = isPaused ? "<span>▶️</span> Resume" : "<span>⏸</span> Pause";
+            stepBtn.disabled = !isPaused; if (!isPaused && stepResolver) { stepResolver(); stepResolver = null; }
+        }
+
+        function reset(full = true) {
+            isRunning = false; isPaused = full; visited.clear(); stack = []; stats = { oob:0, visited:0, mismatch:0 };
+            history = []; historyIndex = -1;
+            updateStats(); renderStack(); updateProgress(0);
+            if (full) initBoard(); else document.querySelectorAll('.cell').forEach(c => c.className = 'cell');
+            document.querySelectorAll('.code-line').forEach(l => l.classList.remove('active'));
+            document.querySelectorAll('.dir-slot').forEach(d => d.className = 'dir-slot');
+            document.getElementById('dir-C').className = 'dir-slot dir-center';
+            stop();
+        }
+
+        runBtn.onclick = start;
+        pauseBtn.onclick = togglePause;
+        stepBtn.onclick = stepForward;
+        backBtn.onclick = stepBackward;
+        resetBtn.onclick = () => reset(true);
+        document.getElementById('speedInput').oninput = (e) => speed = e.target.value;
+        modeBtn.onclick = () => {
+            const b = [ ['F','U','U','C','K','Y','O','U'], ['X','X','X','X','X','X','X','X'], ['F','U','C','K','Y','O','U','!'], ['Y','Y','Y','Y','Y','Y','Y','Y'], ['O','O','O','O','O','O','O','O'], ['U','U','U','U','U','U','U','U'], ['F','U','C','K','Y','O','U','?'] ];
+            initBoard(b); document.getElementById('targetInput').value = "FUCKYOU"; reset(false);
+        };
+
+        initBoard();
+    </script>
+</body>
+</html>
