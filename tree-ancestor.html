@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toxic Family Tree - HARDCORE DEBUGGING 🤬</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Permanent+Marker&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #050505;
+            --panel-bg: rgba(20, 20, 20, 0.9);
+            --border-color: #333;
+            --primary: #00ff66; 
+            --danger: #ff0055; 
+            --info: #00f2ff;
+            --warning: #ffcc00;
+            --text-dim: #888;
+            --node-size: 60px;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: #ccc;
+            font-family: 'JetBrains Mono', monospace;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        h1 {
+            font-family: 'Permanent Marker', cursive;
+            color: var(--danger);
+            font-size: 2.5rem;
+            margin: 0 0 10px 0;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 2px 2px 0px var(--info);
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 280px 1fr 280px;
+            grid-template-rows: auto 1fr auto;
+            grid-template-areas: 
+                "header header header"
+                "stack viz stats"
+                "code code code";
+            gap: 15px;
+            width: 100%;
+            max-width: 1700px;
+            height: calc(100vh - 80px);
+        }
+
+        h1 { grid-area: header; text-align: center; }
+
+        /* --- Sidebar Styles --- */
+        .sidebar-left { grid-area: stack; }
+        .sidebar-right { grid-area: stats; }
+
+        .sidebar {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            height: 100%;
+        }
+
+        .panel-header {
+            color: var(--info);
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .stack-list {
+            flex-grow: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column-reverse;
+            gap: 4px;
+            font-size: 0.7rem;
+        }
+
+        .stack-item {
+            padding: 5px 8px;
+            background: rgba(255, 255, 255, 0.02);
+            border-left: 2px solid var(--danger);
+            white-space: nowrap;
+        }
+
+        /* --- Center: Tree Viz --- */
+        .viz-center {
+            grid-area: viz;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            height: 100%;
+        }
+
+        .narrator {
+            background: rgba(255, 0, 85, 0.05);
+            border: 1px solid var(--danger);
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            color: var(--danger);
+            font-size: 0.85rem;
+            text-align: center;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .controls {
+            background: var(--panel-bg);
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        button {
+            background: #111;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+            padding: 6px 12px;
+            cursor: pointer;
+            font-weight: bold;
+            text-transform: uppercase;
+            border-radius: 4px;
+            font-size: 0.65rem;
+        }
+
+        button:hover { background: var(--primary); color: #000; }
+        button:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .tree-container {
+            flex-grow: 1;
+            background: #080808;
+            border: 1px solid #222;
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #tree-svg {
+            width: 100%;
+            height: 100%;
+            cursor: grab;
+        }
+        #tree-svg:active { cursor: grabbing; }
+
+        .node-group circle {
+            fill: #000;
+            stroke: #444;
+            stroke-width: 2;
+            transition: all 0.3s ease;
+        }
+
+        .node-group text {
+            fill: #fff;
+            font-size: 14px;
+            font-weight: bold;
+            pointer-events: none;
+            text-anchor: middle;
+            dominant-baseline: middle;
+        }
+
+        .link {
+            stroke: #333;
+            stroke-width: 2;
+            fill: none;
+            transition: all 0.3s;
+        }
+
+        /* Active States */
+        .node-group.active circle {
+            stroke: var(--info);
+            stroke-width: 4;
+            filter: drop-shadow(0 0 8px var(--info));
+        }
+
+        .node-group.visit circle {
+            stroke: var(--primary);
+        }
+
+        .link.active {
+            stroke: var(--info);
+            stroke-width: 4;
+        }
+
+        .node-label {
+            font-size: 9px;
+            fill: var(--text-dim);
+            text-transform: uppercase;
+            font-family: inherit;
+        }
+
+        /* --- Briefcase (Inheritance) --- */
+        #briefcase {
+            position: absolute;
+            background: #ffcc00;
+            color: #000;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 100;
+            display: none;
+            box-shadow: 0 0 10px var(--warning);
+            transform-origin: top left;
+        }
+
+        /* --- Right Sidebar --- */
+        .stats-panel { grid-area: stats; display: flex; flex-direction: column; gap: 10px; height: 100%; }
+        .stat-card { background: var(--panel-bg); border: 1px solid var(--border-color); padding: 10px; border-radius: 8px; }
+        .stat-value { font-size: 1.25rem; color: var(--info); font-weight: bold; }
+        .stat-label { font-size: 0.6rem; color: var(--text-dim); text-transform: uppercase; }
+
+        .drama-log {
+            flex-grow: 1;
+            overflow-y: auto;
+            max-height: 400px;
+            font-size: 0.65rem;
+            color: #888;
+        }
+
+        /* --- Code Area --- */
+        .code-area {
+            grid-area: code;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            overflow: hidden;
+        }
+
+        /* --- Syntax Highlighting --- */
+        #code-panel {
+            background: #0d0d0d;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: #d1d1d1;
+            line-height: 1.6;
+            border: 1px solid #222;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .code-col { display: flex; flex-direction: column; }
+        .code-line { padding: 0 8px; border-left: 3px solid transparent; transition: background 0.2s; white-space: pre; }
+        .code-line.active { background: rgba(0, 242, 255, 0.1); border-left-color: var(--info); color: #fff; }
+        
+        .syntax-keyword { color: #ff79c6; }
+        .syntax-func { color: #50fa7b; }
+        .syntax-var { color: #f8f8f2; }
+        .syntax-val { color: #bd93f9; }
+        .syntax-comment { color: #6272a4; font-style: italic; }
+        .syntax-type { color: #8be9fd; }
+
+        #overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255, 0, 85, 0.95);
+            z-index: 1000;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main-layout">
+        <h1>Toxic Family Tree 2.0 🤬</h1>
+
+        <!-- Left SIDEBAR -->
+        <div class="sidebar sidebar-left">
+            <div class="panel-header">
+                <span>Drama Stack</span>
+                <span id="stackDepth">Level: 0</span>
+            </div>
+            <div class="stack-list" id="stackList"></div>
+            
+            <div class="panel-header" style="margin-top:15px">Ancestral Grudges</div>
+            <div style="display:grid; grid-template-columns: 1fr; gap:8px; font-size:0.6rem; padding: 5px;">
+                <div class="legend-item"><span style="color:var(--info)">●</span> Active Recurse</div>
+                <div class="legend-item"><span style="color:var(--primary)">●</span> Deeply Traumatized</div>
+                <div class="legend-item"><span style="color:var(--warning)">💼</span> The Burden</div>
+            </div>
+        </div>
+
+        <!-- Center VIZ -->
+        <div class="viz-center">
+            <div class="narrator" id="narrator">
+                Waiting for the drama to start... 🤬🔥
+            </div>
+            <div class="controls">
+                <button id="runBtn"><span>▶️</span> Begin Drama</button>
+                <button id="backBtn" disabled><span>⏪</span> Prev</button>
+                <button id="pauseBtn" disabled><span>⏸</span> Pause</button>
+                <button id="stepBtn" disabled><span>⏭</span> Next</button>
+                <button id="resetBtn">Cleanse Clan</button>
+                <div style="display:flex; flex-direction:column; align-items:center; margin-left: 10px;">
+                    <label style="font-size:0.5rem; color:var(--text-dim)">TEMPO</label>
+                    <input type="range" id="speedInput" min="100" max="2000" value="600" style="width:70px">
+                </div>
+            </div>
+
+            <div class="tree-container" id="tree-canvas">
+                <div id="briefcase">💼 [MIN: ?, MAX: ?]</div>
+                <svg id="tree-svg">
+                    <!-- Zoom/Pan Wrapper -->
+                    <g id="viewport">
+                        <g id="links-group"></g>
+                        <g id="nodes-group"></g>
+                    </g>
+                </svg>
+                <div style="position: absolute; bottom: 10px; right: 10px; font-size: 0.6rem; color: #444;">
+                    [Wheel to Zoom | Drag to Pan]
+                </div>
+            </div>
+        </div>
+
+        <!-- Right SIDEBAR -->
+        <div class="stats-panel sidebar-right">
+            <div class="stat-card">
+                <div class="panel-header">Family Drama Stats</div>
+                <div style="display:flex; justify-content:space-between; margin-bottom: 8px;">
+                    <div>
+                        <div class="stat-label">Max Drama</div>
+                        <div class="stat-value" id="max-diff">0</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div class="stat-label">Current</div>
+                        <div class="stat-value" id="cur-val" style="color: var(--warning)">-</div>
+                    </div>
+                </div>
+                <div style="border-top: 1px solid #333; padding-top: 8px;">
+                    <div style="display:flex; justify-content:space-between; font-size: 0.65rem;">
+                        <span>Peak Glory:</span> <span id="peak-glory" style="color:var(--primary)">?</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size: 0.65rem;">
+                        <span>Deepest Shame:</span> <span id="deepest-shame" style="color:var(--danger)">?</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stat-card" style="flex-grow:1; display:flex; flex-direction:column; overflow:hidden;">
+                <div class="panel-header">Gossip Thread</div>
+                <div class="drama-log" id="drama-log"></div>
+            </div>
+        </div>
+
+        <!-- Bottom CODE -->
+        <div class="code-area">
+            <div class="panel-header">Inheritance Decoder (DFS Logic)</div>
+            <div id="code-panel">
+                <div class="code-col">
+                    <div class="code-line" id="code-1"><span class="syntax-keyword">def</span> <span class="syntax-func">dfs</span>(node, cur_min, cur_max):</div>
+                    <div class="code-line" id="code-2">    <span class="syntax-keyword">if</span> <span class="syntax-keyword">not</span> node: <span class="syntax-keyword">return</span></div>
+                    <div class="code-line" id="code-3">    <span class="syntax-comment"># Calculate the absolute emotional damage</span></div>
+                    <div class="code-line" id="code-4">    damage_peak = <span class="syntax-func">abs</span>(node.val - cur_min)</div>
+                    <div class="code-line" id="code-5">    damage_low  = <span class="syntax-func">abs</span>(node.val - cur_max)</div>
+                    <div class="code-line" id="code-6">    current_drama = <span class="syntax-func">max</span>(damage_peak, damage_low)</div>
+                </div>
+                <div class="code-col">
+                    <div class="code-line" id="code-7">    <span class="syntax-var">self</span>.max_diff = <span class="syntax-func">max</span>(<span class="syntax-var">self</span>.max_diff, current_drama)</div>
+                    <div class="code-line" id="code-8">    <span class="syntax-comment"># Pass down the updated family baggage</span></div>
+                    <div class="code-line" id="code-9">    new_min = <span class="syntax-func">min</span>(cur_min, node.val)</div>
+                    <div class="code-line" id="code-10">    new_max = <span class="syntax-func">max</span>(cur_max, node.val)</div>
+                    <div class="code-line" id="code-11">    <span class="syntax-func">dfs</span>(node.left, new_min, new_max)</div>
+                    <div class="code-line" id="code-12">    <span class="syntax-func">dfs</span>(node.right, new_min, new_max)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="overlay">
+        <h1 style="font-size: 4rem;">MAX DRAMA ACHIEVED!</h1>
+        <p>The family reputation is officially RUINED 🤬🔥</p>
+        <button onclick="document.getElementById('overlay').style.display='none'" style="background:white; color:black; border:none; margin-top:20px; padding:10px 20px">Whatever...</button>
+    </div>
+
+    <script>
+        // Tree Data
+        const treeData = {
+            id: 1, val: 8, label: "The Patriarch",
+            left: {
+                id: 2, val: 3, label: "The Black Sheep",
+                left: { id: 4, val: 1, label: "The Silent One", left: null, right: null },
+                right: { id: 5, val: 6, label: "The Gossip Monger", left: null, right: null }
+            },
+            right: {
+                id: 3, val: 10, label: "The Golden Child",
+                right: {
+                    id: 6, val: 14, label: "The High Achiever",
+                    left: { id: 7, val: 13, label: "The Burnout", left: null, right: null }
+                }
+            }
+        };
+
+        const nodes = [];
+        const links = [];
+        function flatten(node, x, y, dx, level = 0) {
+            if (!node) return;
+            const nodeInfo = { ...node, x, y, level };
+            nodes.push(nodeInfo);
+            if (node.left) {
+                links.push({ sourceId: node.id, targetId: node.left.id, x1: x, y1: y });
+                const leftNode = flatten(node.left, x - dx, y + 100, dx / 1.6, level + 1);
+            }
+            if (node.right) {
+                links.push({ sourceId: node.id, targetId: node.right.id, x1: x, y1: y });
+                const rightNode = flatten(node.right, x + dx, y + 100, dx / 1.6, level + 1);
+            }
+            return nodeInfo;
+        }
+        flatten(treeData, 500, 80, 200);
+
+        // SVG & Zoom/Pan State
+        const svg = document.getElementById('tree-svg');
+        const viewport = document.getElementById('viewport');
+        const briefcase = document.getElementById('briefcase');
+        const nodesGroup = document.getElementById('nodes-group');
+        const linksGroup = document.getElementById('links-group');
+        
+        let transform = { x: 0, y: 0, scale: 1 };
+        let isDragging = false;
+        let lastMousePos = { x: 0, y: 0 };
+
+        function updateViewport() {
+            viewport.setAttribute('transform', `translate(${transform.x}, ${transform.y}) scale(${transform.scale})`);
+            updateBriefcasePos();
+        }
+
+        svg.onwheel = (e) => {
+            e.preventDefault();
+            const scaleFactor = e.deltaY > 0 ? 0.9 : 1.1;
+            transform.scale *= scaleFactor;
+            updateViewport();
+        };
+
+        svg.onmousedown = (e) => { isDragging = true; lastMousePos = { x: e.clientX, y: e.clientY }; };
+        window.onmousemove = (e) => {
+            if (!isDragging) return;
+            const dx = e.clientX - lastMousePos.x;
+            const dy = e.clientY - lastMousePos.y;
+            transform.x += dx;
+            transform.y += dy;
+            lastMousePos = { x: e.clientX, y: e.clientY };
+            updateViewport();
+        };
+        window.onmouseup = () => { isDragging = false; };
+
+        function initTree() {
+            nodesGroup.innerHTML = '';
+            linksGroup.innerHTML = '';
+            links.forEach(l => {
+                const targetNode = nodes.find(n => n.id === l.targetId);
+                const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                line.setAttribute("x1", l.x1); line.setAttribute("y1", l.y1);
+                line.setAttribute("x2", targetNode.x); line.setAttribute("y2", targetNode.y);
+                line.setAttribute("class", "link");
+                line.id = `link-${l.sourceId}-${l.targetId}`;
+                linksGroup.appendChild(line);
+            });
+            nodes.forEach(n => {
+                const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                group.setAttribute("class", "node-group");
+                group.id = `node-${n.id}`;
+                const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                circle.setAttribute("cx", n.x); circle.setAttribute("cy", n.y); circle.setAttribute("r", 25);
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute("x", n.x); text.setAttribute("y", n.y);
+                text.textContent = n.val;
+                const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                label.setAttribute("x", n.x); label.setAttribute("y", n.y + 40);
+                label.setAttribute("class", "node-label");
+                label.textContent = n.label;
+                group.appendChild(circle); group.appendChild(text); group.appendChild(label);
+                nodesGroup.appendChild(group);
+            });
+            // Center the tree
+            const box = viewport.getBBox();
+            const container = svg.getBoundingClientRect();
+            transform.x = (container.width / 2) - (box.x + box.width / 2);
+            transform.y = 50;
+            updateViewport();
+        }
+
+        // Logic & Animation
+        let currentNodeId = null;
+        function updateBriefcasePos() {
+            if (!currentNodeId) return;
+            const node = nodes.find(n => n.id === currentNodeId);
+            const container = document.getElementById('tree-canvas').getBoundingClientRect();
+            const sx = (node.x * transform.scale) + transform.x;
+            const sy = (node.y * transform.scale) + transform.y;
+            briefcase.style.left = sx + 'px';
+            briefcase.style.top = (sy + 60 * transform.scale) + 'px';
+            briefcase.style.transform = `translate(-50%, -100%) scale(${Math.max(0.6, transform.scale)})`;
+        }
+
+        let isRunning = false, isPaused = false, speed = 600, stepResolver = null, history = [], historyIndex = -1, stack = [], globalMaxDiff = 0;
+        const runBtn = document.getElementById('runBtn'), pauseBtn = document.getElementById('pauseBtn'), stepBtn = document.getElementById('stepBtn'), backBtn = document.getElementById('backBtn'), resetBtn = document.getElementById('resetBtn'), dramaLog = document.getElementById('drama-log');
+
+        function saveState() {
+            const nodeClasses = {}, linkClasses = {};
+            document.querySelectorAll('.node-group').forEach(n => nodeClasses[n.id] = n.getAttribute('class'));
+            document.querySelectorAll('.link').forEach(l => linkClasses[l.id] = l.getAttribute('class'));
+            const snapshot = {
+                stack: JSON.parse(JSON.stringify(stack)),
+                maxDiff: globalMaxDiff,
+                curNodeId: currentNodeId,
+                stats: { curVal: document.getElementById('cur-val').textContent, peak: document.getElementById('peak-glory').textContent, shame: document.getElementById('deepest-shame').textContent },
+                nodeClasses, linkClasses,
+                narrator: document.getElementById('narrator').innerHTML,
+                dramaLog: dramaLog.innerHTML,
+                briefcase: { display: briefcase.style.display, text: briefcase.textContent },
+                codeLine: document.querySelector('.code-line.active')?.id || null,
+                transform: { ...transform }
+            };
+            if (historyIndex < history.length - 1) history = history.slice(0, historyIndex + 1);
+            history.push(snapshot);
+            historyIndex = history.length - 1;
+            backBtn.disabled = historyIndex <= 0;
+        }
+
+        function restoreState(idx) {
+            const state = history[idx];
+            stack = state.stack; renderStack();
+            globalMaxDiff = state.maxDiff; document.getElementById('max-diff').textContent = globalMaxDiff;
+            document.getElementById('cur-val').textContent = state.stats.curVal;
+            document.getElementById('peak-glory').textContent = state.stats.peak;
+            document.getElementById('deepest-shame').textContent = state.stats.shame;
+            document.getElementById('narrator').innerHTML = state.narrator;
+            dramaLog.innerHTML = state.dramaLog;
+            for(let id in state.nodeClasses) document.getElementById(id)?.setAttribute('class', state.nodeClasses[id]);
+            for(let id in state.linkClasses) document.getElementById(id)?.setAttribute('class', state.linkClasses[id]);
+            currentNodeId = state.curNodeId;
+            briefcase.style.display = state.briefcase.display;
+            briefcase.textContent = state.briefcase.text;
+            document.querySelectorAll('.code-line').forEach(l => l.classList.remove('active'));
+            if (state.codeLine) document.getElementById(state.codeLine)?.classList.add('active');
+            transform = { ...state.transform };
+            updateViewport();
+            historyIndex = idx;
+            backBtn.disabled = historyIndex <= 0;
+            stepBtn.disabled = false;
+        }
+
+        async function checkPause() { saveState(); if (!isPaused) return; return new Promise(res => { stepResolver = res; }); }
+        const sleep = (ms) => new Promise(res => setTimeout(res, ms));
+        function highlightCode(id) { document.querySelectorAll('.code-line').forEach(l => l.classList.remove('active')); document.getElementById(`code-${id}`)?.classList.add('active'); }
+        function setNarrator(m) { document.getElementById('narrator').innerHTML = m; }
+        function logDrama(m) { const d = document.createElement('div'); d.textContent = `> ${m}`; dramaLog.prepend(d); }
+        function renderStack() {
+            document.getElementById('stackDepth').textContent = `Level: ${stack.length}`;
+            document.getElementById('stackList').innerHTML = stack.map(s => `<div class="stack-item">dfs(node:${s.val}, min:${s.min}, max:${s.max})</div>`).join('');
+        }
+
+        async function dramaDFS(node, curMin, curMax, pId = null) {
+            if (!isRunning || !node) { if(!node) { highlightCode(2); await checkPause(); } return; }
+            stack.push({ val: node.val, min: curMin, max: curMax }); renderStack();
+            currentNodeId = node.id;
+            const nodeEl = document.getElementById(`node-${node.id}`);
+            nodeEl.classList.add('active');
+            if (pId) document.getElementById(`link-${pId}-${node.id}`)?.classList.add('active');
+            briefcase.style.display = 'block';
+            briefcase.textContent = `💼 [Inherited Min: ${curMin}, Max: ${curMax}]`;
+            updateBriefcasePos();
+            document.getElementById('cur-val').textContent = node.val;
+            document.getElementById('peak-glory').textContent = curMax;
+            document.getElementById('deepest-shame').textContent = curMin;
+            setNarrator(`Inspecting <b>${node.label}</b> (Val: ${node.val})`);
+            highlightCode(1); await checkPause(); if (!isPaused) await sleep(speed);
+
+            highlightCode(4); const d1 = Math.abs(node.val - curMin);
+            highlightCode(5); const d2 = Math.abs(node.val - curMax);
+            const local = Math.max(d1, d2);
+            logDrama(`${node.label}: ${local}`); await checkPause();
+
+            highlightCode(7);
+            if (local > globalMaxDiff) { globalMaxDiff = local; document.getElementById('max-diff').textContent = globalMaxDiff; setNarrator(`<span style="color:var(--primary)">NEW DRAMA! Level: ${globalMaxDiff}</span>`); if (!isPaused) await sleep(speed); }
+            await checkPause();
+
+            highlightCode(9); const nMin = Math.min(curMin, node.val);
+            highlightCode(10); const nMax = Math.max(curMax, node.val);
+            await checkPause();
+
+            highlightCode(11); await dramaDFS(node.left, nMin, nMax, node.id);
+            highlightCode(12); await dramaDFS(node.right, nMin, nMax, node.id);
+
+            nodeEl.classList.replace('active', 'visit');
+            stack.pop(); renderStack();
+            setNarrator(`Retreating from ${node.label}`); await checkPause();
+        }
+
+        runBtn.onclick = async () => { if (isRunning) return; reset(false); isRunning = true; runBtn.disabled = true; pauseBtn.disabled = false; await dramaDFS(treeData, treeData.val, treeData.val); isRunning = false; runBtn.disabled = false; pauseBtn.disabled = true; stepBtn.disabled = true; if (globalMaxDiff >= 10) document.getElementById('overlay').style.display = 'flex'; };
+        pauseBtn.onclick = () => { isPaused = !isPaused; pauseBtn.innerHTML = isPaused ? "<span>▶️</span> Resume" : "<span>⏸</span> Pause"; stepBtn.disabled = !isPaused; if (!isPaused && stepResolver) { stepResolver(); stepResolver = null; } };
+        stepBtn.onclick = () => { if (stepResolver) { const r = stepResolver; stepResolver = null; r(); } };
+        backBtn.onclick = () => { if (historyIndex > 0) { isPaused = true; restoreState(historyIndex - 1); } };
+        resetBtn.onclick = () => reset(true);
+        speedInput.oninput = (e) => speed = e.target.value;
+
+        function reset(full = true) {
+            isRunning = false; isPaused = false; stack = []; globalMaxDiff = 0; history = []; historyIndex = -1; currentNodeId = null;
+            document.getElementById('max-diff').textContent = 0; document.getElementById('cur-val').textContent = '-'; document.getElementById('peak-glory').textContent = '?'; document.getElementById('deepest-shame').textContent = '?';
+            dramaLog.innerHTML = ''; setNarrator("Drama cleared.");
+            if (full) initTree();
+            else { document.querySelectorAll('.node-group').forEach(n => n.setAttribute('class', 'node-group')); document.querySelectorAll('.link').forEach(l => l.setAttribute('class', 'link')); }
+            briefcase.style.display = 'none'; backBtn.disabled = true; pauseBtn.disabled = true; stepBtn.disabled = true; pauseBtn.innerHTML = "<span>⏸</span> Pause";
+        }
+
+        initTree();
+    </script>
+</body>
+</html>

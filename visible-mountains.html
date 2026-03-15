@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大山吃小山 / Big Mountain Eats Small — Visible Mountains</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bungee+Shade&family=Roboto+Mono:wght@400;700&family=Noto+Sans+SC:wght@700&display=swap');
+
+        :root {
+            --bg:       #0a0f1a;
+            --panel:    rgba(10, 20, 40, 0.75);
+            --border:   rgba(100, 200, 255, 0.15);
+            --mountain: #4ade80;
+            --eaten:    #ef4444;
+            --visible:  #facc15;
+            --dupe:     #f97316;
+            --sweep:    #38bdf8;
+        }
+
+        body {
+            background-color: var(--bg);
+            background-image:
+                radial-gradient(ellipse at 30% 80%, rgba(74,222,128,0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 70% 20%, rgba(56,189,248,0.06) 0%, transparent 50%);
+            color: #e2e8f0;
+            font-family: 'Roboto Mono', monospace;
+            min-height: 100vh;
+        }
+
+        .title-font { font-family: 'Bungee Shade', cursive; letter-spacing: 2px; }
+        .cn-font    { font-family: 'Noto Sans SC', sans-serif; }
+
+        .glass-card {
+            background: var(--panel);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(100,200,255,0.06);
+        }
+
+        /* Mountain triangle */
+        .mountain-tri {
+            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .mountain-tri.eaten {
+            opacity: 0.25;
+        }
+        .mountain-tri.visible-peak {
+            filter: drop-shadow(0 0 8px rgba(250,204,21,0.6));
+        }
+        .mountain-tri.duplicate {
+            opacity: 0.3;
+            stroke-dasharray: 6,4;
+        }
+        .mountain-tri.active-check {
+            filter: drop-shadow(0 0 12px rgba(56,189,248,0.8));
+        }
+
+        /* Pac-man chomp animation for eating */
+        @keyframes chomp {
+            0%   { transform: scale(1); }
+            30%  { transform: scale(1.08); }
+            60%  { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+        .chomping { animation: chomp 0.6s ease-out; }
+
+        /* Eaten mountain shrinks */
+        @keyframes get-eaten {
+            0%   { transform: scale(1); opacity: 1; }
+            50%  { transform: scale(0.9) translateY(5px); opacity: 0.5; }
+            100% { transform: scale(0.85) translateY(8px); opacity: 0.25; }
+        }
+        .being-eaten { animation: get-eaten 0.6s ease-out forwards; }
+
+        /* Crown pop for visible peak */
+        @keyframes crown-pop {
+            0%   { transform: scale(0) translateY(10px); opacity: 0; }
+            60%  { transform: scale(1.4) translateY(-5px); opacity: 1; }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
+        }
+        .crown-pop { animation: crown-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+
+        /* Sweep line pulse */
+        @keyframes sweep-pulse {
+            0%, 100% { opacity: 0.6; }
+            50%      { opacity: 1; }
+        }
+        .sweep-line { animation: sweep-pulse 1s ease-in-out infinite; }
+
+        /* Emoji pop */
+        @keyframes emoji-pop {
+            0%   { transform: scale(0) translateY(10px); opacity: 0; }
+            60%  { transform: scale(1.3) translateY(-4px); opacity: 1; }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
+        }
+        .emoji-pop { animation: emoji-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+
+        /* Log slide in */
+        @keyframes log-in {
+            0%   { transform: translateX(-8px); opacity: 0; }
+            100% { transform: translateX(0); opacity: 1; }
+        }
+        .log-in { animation: log-in 0.3s ease-out; }
+
+        /* Badge flash */
+        @keyframes badge-flash {
+            0%,100% { background: transparent; }
+            50%     { background: rgba(250,204,21,0.2); }
+        }
+        .badge-flash { animation: badge-flash 0.6s ease; }
+
+        /* Burp emoji */
+        @keyframes burp-float {
+            0%   { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-40px) scale(1.5); opacity: 0; }
+        }
+        .burp-float { animation: burp-float 1s ease-out forwards; }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0a0f1a; }
+        ::-webkit-scrollbar-thumb { background: #1e3a5f; border-radius: 3px; }
+    </style>
+</head>
+<body class="p-4 md:p-6">
+<div class="max-w-7xl mx-auto space-y-5">
+
+    <!-- HEADER -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-sky-900/50 pb-5">
+        <div>
+            <h1 class="text-3xl md:text-5xl text-yellow-400 title-font drop-shadow-[0_0_12px_rgba(250,204,21,0.5)]">
+                大山吃小山
+            </h1>
+            <p class="text-slate-400 mt-1 text-sm cn-font">
+                <span class="text-green-400 font-bold">算法：</span>排序 + 扫描线 · Sort by Interval + Greedy Sweep
+            </p>
+            <p class="text-slate-600 text-xs mt-1">LeetCode 2345 · Finding the Number of Visible Mountains · Medium</p>
+        </div>
+        <div class="glass-card rounded-xl p-3 flex flex-col gap-2 min-w-[260px]">
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-sky-400 w-14">peaks =</span>
+                <input type="text" id="peaksInput" value="[[2,2],[6,3],[5,4]]"
+                    class="flex-1 bg-black/40 border border-sky-900/40 rounded px-2 py-1 text-xs text-sky-200 focus:outline-none focus:border-sky-500 font-mono">
+            </div>
+            <button onclick="resetViz()" class="w-full bg-sky-900 hover:bg-sky-700 text-white rounded-lg py-1.5 text-xs transition-colors border border-sky-500 flex items-center justify-center gap-2">
+                <i data-lucide="rotate-ccw" class="w-3 h-3"></i> 重置 Reset
+            </button>
+        </div>
+    </div>
+
+    <!-- TOP STATS -->
+    <div class="grid grid-cols-3 gap-4">
+        <div class="glass-card rounded-xl p-4 text-center">
+            <div class="text-xs text-sky-400 uppercase tracking-widest mb-1">当前山 / Current</div>
+            <div id="currentDisplay" class="text-2xl font-black font-mono text-sky-300">—</div>
+        </div>
+        <div class="glass-card rounded-xl p-4 text-center" style="border-color: rgba(250,204,21,0.3);">
+            <div class="text-xs text-yellow-500 uppercase tracking-widest mb-1">可见山峰 / Visible</div>
+            <div id="visibleDisplay" class="text-4xl font-black font-mono text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.5)]">—</div>
+        </div>
+        <div class="glass-card rounded-xl p-4 text-center">
+            <div class="text-xs text-sky-400 uppercase tracking-widest mb-1">最大右端 / maxEnd</div>
+            <div id="maxEndDisplay" class="text-2xl font-black font-mono text-green-400">—</div>
+        </div>
+    </div>
+
+    <!-- MAIN LAYOUT -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+        <!-- LEFT: Canvas + Log -->
+        <div class="lg:col-span-8 space-y-4">
+
+            <!-- Mountain Canvas -->
+            <div class="glass-card rounded-xl relative overflow-hidden" style="height:460px;">
+                <svg id="mountainSvg" class="absolute inset-0 w-full h-full"></svg>
+                <div id="fxLayer" class="absolute inset-0 pointer-events-none" style="z-index:20;"></div>
+            </div>
+
+            <!-- Log Box -->
+            <div class="glass-card rounded-xl p-5 min-h-[110px] flex items-start gap-4">
+                <div class="bg-green-900/20 p-3 rounded-lg text-green-400 shrink-0 border border-green-600/30">
+                    <i data-lucide="megaphone" class="w-5 h-5"></i>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-green-600 mb-2 cn-font">山界播报 / Mountain Broadcast</h3>
+                    <div id="explanationText" class="text-base leading-relaxed text-slate-200 font-bold log-in">
+                        待命中... / Standby...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: Controls + Info -->
+        <div class="lg:col-span-4 space-y-4">
+
+            <!-- Playback Controls -->
+            <div class="glass-card rounded-xl p-5 flex justify-center gap-5 items-center">
+                <button onclick="step(-1)" class="p-3 rounded-full hover:bg-white/10 transition-all active:scale-95 text-slate-400 hover:text-white">
+                    <i data-lucide="chevron-left" class="w-6 h-6"></i>
+                </button>
+                <button id="playPauseBtn" onclick="togglePlay()"
+                    class="p-5 rounded-full bg-green-600 hover:bg-green-500 text-black shadow-[0_0_20px_rgba(74,222,128,0.5)] transition-all active:scale-95 hover:scale-105 border border-green-400">
+                    <i data-lucide="play" class="w-7 h-7 fill-current"></i>
+                </button>
+                <button onclick="step(1)" class="p-3 rounded-full hover:bg-white/10 transition-all active:scale-95 text-slate-400 hover:text-white">
+                    <i data-lucide="chevron-right" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <!-- Step counter -->
+            <div class="glass-card rounded-xl p-3 text-center">
+                <div id="stepCounter" class="text-lg font-black font-mono text-slate-400">0 / 0</div>
+            </div>
+
+            <!-- Sorted Peaks Table -->
+            <div class="glass-card rounded-xl p-4">
+                <div class="text-xs text-green-500 uppercase tracking-widest mb-3 cn-font font-bold">🏔️ 排序后的山峰 / Sorted Peaks</div>
+                <div id="peaksTable" class="space-y-1 max-h-[200px] overflow-y-auto"></div>
+            </div>
+
+            <!-- Algorithm Concept -->
+            <div class="glass-card rounded-xl p-4">
+                <div class="text-xs text-yellow-500 uppercase tracking-widest mb-3 font-bold">🧠 核心思想 / Key Insight</div>
+                <div class="text-xs text-slate-300 space-y-2 cn-font leading-relaxed">
+                    <p>每座山是个等腰直角三角形 ⛰️</p>
+                    <p>左脚在 <code class="text-sky-400">x - y</code>，右脚在 <code class="text-sky-400">x + y</code></p>
+                    <p>按左脚排序后，谁的右脚更远谁就更大 🦶</p>
+                    <p>大山把小山整个吞了 → 小山不可见 😋</p>
+                    <p class="text-yellow-400 font-bold">重复的山峰互相遮挡，都不算可见！👯‍♂️</p>
+                </div>
+            </div>
+
+            <!-- Legend -->
+            <div class="glass-card rounded-xl p-4 space-y-2 text-xs">
+                <div class="text-slate-500 uppercase tracking-widest mb-2">图例 / Legend</div>
+                <div class="flex items-center gap-2"><span class="text-xl">👑</span><span class="text-yellow-400">可见山峰 (Visible Peak)</span></div>
+                <div class="flex items-center gap-2"><span class="text-xl">😋</span><span class="text-red-400">被吃掉了 (Eaten / Hidden)</span></div>
+                <div class="flex items-center gap-2"><span class="text-xl">👯</span><span class="text-orange-400">重复山峰 (Duplicate — both hidden)</span></div>
+                <div class="flex items-center gap-2"><span class="text-xl">🔍</span><span class="text-sky-400">正在检查 (Currently Checking)</span></div>
+                <div class="flex items-center gap-2"><div class="w-8 h-0.5 bg-green-400"></div><span class="text-slate-400">maxEnd 扫描线</span></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+let steps = [], currentStepIndex = 0, isPlaying = false, playInterval;
+let originalPeaks = [];
+
+// ─── Algorithm: Generate Steps ───────────────────────────────────────────────
+function generateSteps(peaks) {
+    const allSteps = [];
+    const n = peaks.length;
+
+    if (n === 0) {
+        allSteps.push({
+            role: 'finish', sortedPeaks: [], statuses: [], activeIdx: -1,
+            maxEnd: -Infinity, visibleCount: 0,
+            description: '<div class="cn-font">没有山... 一片平原 🏜️</div><div class="text-sm opacity-50 mt-1 font-normal">No mountains. Empty plain.</div>'
+        });
+        return allSteps;
+    }
+
+    // Create indexed peaks for tracking
+    const indexed = peaks.map(function(p, i) {
+        return { x: p[0], y: p[1], origIdx: i, left: p[0] - p[1], right: p[0] + p[1] };
+    });
+
+    // Sort: by left intercept ascending, then right intercept descending
+    indexed.sort(function(a, b) { return a.left !== b.left ? a.left - b.left : b.right - a.right; });
+
+    // statuses: 'pending', 'visible', 'eaten', 'duplicate'
+    const statuses = new Array(indexed.length).fill('pending');
+
+    allSteps.push({
+        role: 'init', sortedPeaks: indexed.map(function(p) { return Object.assign({}, p); }),
+        statuses: statuses.slice(),
+        activeIdx: -1, maxEnd: -Infinity, visibleCount: 0,
+        description: '<div class="cn-font">🏔️ 山界大会开始！共有 <strong>' + n + '</strong> 座山参赛。<br>先按 <span class="text-sky-400">左脚位置</span> 排队，左脚相同则 <span class="text-sky-400">大山优先</span>（右脚远的排前面）。</div>' +
+                     '<div class="text-sm opacity-50 mt-1 font-normal">Contest begins! ' + n + ' mountains sorted by left intercept (asc), then right intercept (desc).</div>'
+    });
+
+    var maxEnd = -Infinity;
+    var visibleCount = 0;
+
+    for (var i = 0; i < indexed.length; i++) {
+        var peak = indexed[i];
+        var isDuplicate = i < indexed.length - 1 &&
+            indexed[i].x === indexed[i + 1].x && indexed[i].y === indexed[i + 1].y;
+
+        if (peak.right > maxEnd) {
+            maxEnd = peak.right;
+
+            if (isDuplicate) {
+                statuses[i] = 'duplicate';
+                allSteps.push({
+                    role: 'duplicate', sortedPeaks: indexed.map(function(p) { return Object.assign({}, p); }),
+                    statuses: statuses.slice(),
+                    activeIdx: i, maxEnd: maxEnd, visibleCount: visibleCount,
+                    description: '<div class="cn-font">👯 哎呀！山峰 <strong class="text-orange-400">(' + peak.x + ', ' + peak.y + ')</strong> 发现自己有个双胞胎！<br>两座一模一样的山互相遮挡，<span class="text-orange-400">谁都别想露脸</span>！maxEnd 更新到 <strong class="text-green-400">' + maxEnd + '</strong>。</div>' +
+                                 '<div class="text-sm opacity-50 mt-1 font-normal">Duplicate peak (' + peak.x + ',' + peak.y + ')! Twins block each other — neither counts. maxEnd → ' + maxEnd + '.</div>'
+                });
+            } else {
+                statuses[i] = 'visible';
+                visibleCount++;
+                allSteps.push({
+                    role: 'visible', sortedPeaks: indexed.map(function(p) { return Object.assign({}, p); }),
+                    statuses: statuses.slice(),
+                    activeIdx: i, maxEnd: maxEnd, visibleCount: visibleCount,
+                    description: '<div class="cn-font">👑 山峰 <strong class="text-yellow-400">(' + peak.x + ', ' + peak.y + ')</strong> 右脚踩到 <strong class="text-green-400">' + peak.right + '</strong> > maxEnd！<br>谁也挡不住我！<span class="text-yellow-400">我是可见的！</span> maxEnd 更新！当前可见数：<strong class="text-yellow-300">' + visibleCount + '</strong></div>' +
+                                 '<div class="text-sm opacity-50 mt-1 font-normal">Peak (' + peak.x + ',' + peak.y + ') right=' + peak.right + ' > maxEnd. Visible! Count=' + visibleCount + '. maxEnd → ' + maxEnd + '.</div>'
+                });
+            }
+        } else {
+            statuses[i] = 'eaten';
+            allSteps.push({
+                role: 'eaten', sortedPeaks: indexed.map(function(p) { return Object.assign({}, p); }),
+                statuses: statuses.slice(),
+                activeIdx: i, maxEnd: maxEnd, visibleCount: visibleCount,
+                description: '<div class="cn-font">😋 山峰 <strong class="text-red-400">(' + peak.x + ', ' + peak.y + ')</strong> 右脚只到 <strong class="text-red-300">' + peak.right + '</strong> ≤ maxEnd <strong class="text-green-400">' + maxEnd + '</strong>...<br>被前面的大山 <span class="text-red-400">一口吞了</span>！*嗝*</div>' +
+                             '<div class="text-sm opacity-50 mt-1 font-normal">Peak (' + peak.x + ',' + peak.y + ') right=' + peak.right + ' ≤ maxEnd=' + maxEnd + '. Eaten alive! *burp*</div>'
+            });
+        }
+    }
+
+    allSteps.push({
+        role: 'finish', sortedPeaks: indexed.map(function(p) { return Object.assign({}, p); }),
+        statuses: statuses.slice(),
+        activeIdx: -1, maxEnd: maxEnd, visibleCount: visibleCount,
+        description: '<div class="cn-font">🏆 山界大赛结束！共 <strong class="text-yellow-400 text-2xl">' + visibleCount + '</strong> 座山峰存活可见！<br>其余全被大山吃掉了...打个嗝先 🫧</div>' +
+                     '<div class="text-sm opacity-50 mt-1 font-normal">Contest over! ' + visibleCount + ' mountain(s) remain visible. The rest were devoured.</div>'
+    });
+
+    return allSteps;
+}
+
+// ─── Rendering ───────────────────────────────────────────────────────────────
+function render() {
+    var state = steps[currentStepIndex];
+    var svg = document.getElementById('mountainSvg');
+    var W = svg.clientWidth || 700;
+    var H = svg.clientHeight || 460;
+
+    renderMountains(state, W, H);
+    renderTable(state);
+    updateStats(state);
+    spawnFx(state);
+    lucide.createIcons();
+}
+
+function getCoordSystem(peaks, W, H) {
+    var minX = Infinity, maxX = -Infinity, maxY = 0;
+    for (var j = 0; j < peaks.length; j++) {
+        var p = peaks[j];
+        if (p.left < minX) minX = p.left;
+        if (p.right > maxX) maxX = p.right;
+        if (p.y > maxY) maxY = p.y;
+    }
+    var padding = 40;
+    var rangeX = maxX - minX || 1;
+    var scaleX = (W - padding * 2) / rangeX;
+    var scaleY = (H - padding * 2) / (maxY || 1);
+    var baseY = H - padding;
+    return {
+        minX: minX, maxX: maxX, maxY: maxY, padding: padding,
+        scaleX: scaleX, scaleY: scaleY, baseY: baseY,
+        toSvgX: function(cx) { return padding + (cx - minX) * scaleX; },
+        toSvgY: function(cy) { return baseY - cy * scaleY; }
+    };
+}
+
+function renderMountains(state, W, H) {
+    var svg = document.getElementById('mountainSvg');
+    svg.textContent = '';
+
+    var peaks = state.sortedPeaks;
+    if (peaks.length === 0) return;
+
+    var cs = getCoordSystem(peaks, W, H);
+
+    // Draw x-axis
+    var axis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    axis.setAttribute('x1', cs.padding - 10); axis.setAttribute('y1', cs.baseY);
+    axis.setAttribute('x2', W - cs.padding + 10); axis.setAttribute('y2', cs.baseY);
+    axis.setAttribute('stroke', 'rgba(100,200,255,0.2)');
+    axis.setAttribute('stroke-width', '1');
+    svg.appendChild(axis);
+
+    // Draw tick marks on x-axis
+    for (var tx = Math.ceil(cs.minX); tx <= Math.floor(cs.maxX); tx++) {
+        var sx = cs.toSvgX(tx);
+        var tick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        tick.setAttribute('x1', sx); tick.setAttribute('y1', cs.baseY);
+        tick.setAttribute('x2', sx); tick.setAttribute('y2', cs.baseY + 5);
+        tick.setAttribute('stroke', 'rgba(100,200,255,0.3)');
+        tick.setAttribute('stroke-width', '1');
+        svg.appendChild(tick);
+
+        var label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', sx); label.setAttribute('y', cs.baseY + 16);
+        label.setAttribute('text-anchor', 'middle');
+        label.setAttribute('fill', 'rgba(100,200,255,0.4)');
+        label.setAttribute('font-size', '10');
+        label.setAttribute('font-family', 'Roboto Mono, monospace');
+        label.textContent = tx;
+        svg.appendChild(label);
+    }
+
+    // Draw maxEnd sweep line
+    if (state.maxEnd !== -Infinity) {
+        var sweepX = cs.toSvgX(state.maxEnd);
+        var sweepLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        sweepLine.setAttribute('x1', sweepX); sweepLine.setAttribute('y1', cs.padding - 10);
+        sweepLine.setAttribute('x2', sweepX); sweepLine.setAttribute('y2', cs.baseY);
+        sweepLine.setAttribute('stroke', '#4ade80');
+        sweepLine.setAttribute('stroke-width', '2');
+        sweepLine.setAttribute('stroke-dasharray', '6,4');
+        sweepLine.setAttribute('class', 'sweep-line');
+        svg.appendChild(sweepLine);
+
+        var sweepLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        sweepLabel.setAttribute('x', sweepX); sweepLabel.setAttribute('y', cs.padding - 15);
+        sweepLabel.setAttribute('text-anchor', 'middle');
+        sweepLabel.setAttribute('fill', '#4ade80');
+        sweepLabel.setAttribute('font-size', '11');
+        sweepLabel.setAttribute('font-family', 'Roboto Mono, monospace');
+        sweepLabel.setAttribute('font-weight', 'bold');
+        sweepLabel.textContent = 'maxEnd=' + state.maxEnd;
+        svg.appendChild(sweepLabel);
+    }
+
+    // Draw each mountain as a triangle
+    for (var i = 0; i < peaks.length; i++) {
+        var p = peaks[i];
+        var status = state.statuses[i];
+        var isActive = state.activeIdx === i;
+
+        var peakSvgX = cs.toSvgX(p.x);
+        var peakSvgY = cs.toSvgY(p.y);
+        var leftSvgX = cs.toSvgX(p.left);
+        var rightSvgX = cs.toSvgX(p.right);
+
+        var points = leftSvgX + ',' + cs.baseY + ' ' + peakSvgX + ',' + peakSvgY + ' ' + rightSvgX + ',' + cs.baseY;
+
+        var poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        poly.setAttribute('points', points);
+
+        var fillColor, strokeColor, extraClass = '';
+        if (status === 'visible') {
+            fillColor = 'rgba(250,204,21,0.2)';
+            strokeColor = '#facc15';
+            extraClass = 'visible-peak';
+        } else if (status === 'eaten') {
+            fillColor = 'rgba(239,68,68,0.08)';
+            strokeColor = 'rgba(239,68,68,0.4)';
+            extraClass = 'eaten';
+        } else if (status === 'duplicate') {
+            fillColor = 'rgba(249,115,22,0.1)';
+            strokeColor = 'rgba(249,115,22,0.5)';
+            extraClass = 'duplicate';
+        } else {
+            fillColor = 'rgba(74,222,128,0.12)';
+            strokeColor = 'rgba(74,222,128,0.5)';
+        }
+        if (isActive) extraClass += ' active-check';
+
+        poly.setAttribute('fill', fillColor);
+        poly.setAttribute('stroke', strokeColor);
+        poly.setAttribute('stroke-width', isActive ? '3' : '2');
+        poly.setAttribute('class', 'mountain-tri ' + extraClass);
+        svg.appendChild(poly);
+
+        // Peak emoji
+        var emoji = status === 'visible' ? '👑' : status === 'eaten' ? '💀' : status === 'duplicate' ? '👯' : '⛰️';
+        var peakEmojiEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        peakEmojiEl.setAttribute('x', peakSvgX);
+        peakEmojiEl.setAttribute('y', peakSvgY - 12);
+        peakEmojiEl.setAttribute('text-anchor', 'middle');
+        peakEmojiEl.setAttribute('font-size', '16');
+        peakEmojiEl.textContent = emoji;
+        svg.appendChild(peakEmojiEl);
+
+        // Coordinate label at peak
+        var coordLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        coordLabel.setAttribute('x', peakSvgX);
+        coordLabel.setAttribute('y', peakSvgY - 28);
+        coordLabel.setAttribute('text-anchor', 'middle');
+        coordLabel.setAttribute('fill', isActive ? '#38bdf8' : status === 'visible' ? '#facc15' : status === 'eaten' ? 'rgba(239,68,68,0.6)' : 'rgba(200,200,200,0.6)');
+        coordLabel.setAttribute('font-size', '10');
+        coordLabel.setAttribute('font-family', 'Roboto Mono, monospace');
+        coordLabel.setAttribute('font-weight', 'bold');
+        coordLabel.textContent = '(' + p.x + ',' + p.y + ')';
+        svg.appendChild(coordLabel);
+
+        // Original index label at base
+        var idxLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        idxLabel.setAttribute('x', peakSvgX);
+        idxLabel.setAttribute('y', cs.baseY + 28);
+        idxLabel.setAttribute('text-anchor', 'middle');
+        idxLabel.setAttribute('fill', 'rgba(148,163,184,0.5)');
+        idxLabel.setAttribute('font-size', '9');
+        idxLabel.setAttribute('font-family', 'Roboto Mono, monospace');
+        idxLabel.textContent = 'orig#' + p.origIdx;
+        svg.appendChild(idxLabel);
+
+        // Left/Right intercept labels for active or visible peaks
+        if (isActive || status === 'visible') {
+            var leftLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            leftLabel.setAttribute('x', leftSvgX);
+            leftLabel.setAttribute('y', cs.baseY - 5);
+            leftLabel.setAttribute('text-anchor', 'middle');
+            leftLabel.setAttribute('fill', 'rgba(56,189,248,0.6)');
+            leftLabel.setAttribute('font-size', '9');
+            leftLabel.setAttribute('font-family', 'Roboto Mono, monospace');
+            leftLabel.textContent = p.left;
+            svg.appendChild(leftLabel);
+
+            var rightLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            rightLabel.setAttribute('x', rightSvgX);
+            rightLabel.setAttribute('y', cs.baseY - 5);
+            rightLabel.setAttribute('text-anchor', 'middle');
+            rightLabel.setAttribute('fill', 'rgba(56,189,248,0.6)');
+            rightLabel.setAttribute('font-size', '9');
+            rightLabel.setAttribute('font-family', 'Roboto Mono, monospace');
+            rightLabel.textContent = p.right;
+            svg.appendChild(rightLabel);
+        }
+    }
+}
+
+function renderTable(state) {
+    var container = document.getElementById('peaksTable');
+    container.textContent = '';
+
+    for (var i = 0; i < state.sortedPeaks.length; i++) {
+        var p = state.sortedPeaks[i];
+        var status = state.statuses[i];
+        var isActive = state.activeIdx === i;
+
+        var row = document.createElement('div');
+        var cls = 'flex items-center gap-2 px-2 py-1 rounded text-xs font-mono transition-all';
+        if (isActive) cls += ' bg-sky-900/40 border border-sky-500/50';
+        if (status === 'visible') cls += ' bg-yellow-900/20 border border-yellow-600/30';
+        if (status === 'eaten') cls += ' opacity-40 line-through';
+        if (status === 'duplicate') cls += ' opacity-50 border border-orange-600/30';
+        row.className = cls;
+
+        var emoji = status === 'visible' ? '👑' : status === 'eaten' ? '💀' : status === 'duplicate' ? '👯' : isActive ? '🔍' : '⛰️';
+        var statusLabel = status === 'visible' ? 'VISIBLE' : status === 'eaten' ? 'EATEN' : status === 'duplicate' ? 'DUPE' : 'pending';
+        var statusColor = status === 'visible' ? 'text-yellow-400' : status === 'eaten' ? 'text-red-400' : status === 'duplicate' ? 'text-orange-400' : 'text-slate-500';
+
+        var emojiSpan = document.createElement('span');
+        emojiSpan.textContent = emoji;
+        row.appendChild(emojiSpan);
+
+        var idxSpan = document.createElement('span');
+        idxSpan.className = 'text-slate-400 w-5';
+        idxSpan.textContent = '#' + i;
+        row.appendChild(idxSpan);
+
+        var coordSpan = document.createElement('span');
+        coordSpan.className = 'text-sky-300';
+        coordSpan.textContent = '(' + p.x + ',' + p.y + ')';
+        row.appendChild(coordSpan);
+
+        var leftSpan = document.createElement('span');
+        leftSpan.className = 'text-slate-600';
+        leftSpan.textContent = 'L:' + p.left;
+        row.appendChild(leftSpan);
+
+        var rightSpan = document.createElement('span');
+        rightSpan.className = 'text-slate-600';
+        rightSpan.textContent = 'R:' + p.right;
+        row.appendChild(rightSpan);
+
+        var statusSpan = document.createElement('span');
+        statusSpan.className = 'ml-auto ' + statusColor;
+        statusSpan.textContent = statusLabel;
+        row.appendChild(statusSpan);
+
+        container.appendChild(row);
+    }
+}
+
+function updateStats(state) {
+    document.getElementById('visibleDisplay').textContent = state.visibleCount;
+    document.getElementById('stepCounter').textContent = (currentStepIndex + 1) + ' / ' + steps.length;
+    document.getElementById('maxEndDisplay').textContent = state.maxEnd === -Infinity ? '-∞' : state.maxEnd;
+
+    if (state.activeIdx >= 0 && state.sortedPeaks[state.activeIdx]) {
+        var p = state.sortedPeaks[state.activeIdx];
+        document.getElementById('currentDisplay').textContent = '(' + p.x + ',' + p.y + ')';
+    } else {
+        document.getElementById('currentDisplay').textContent = '—';
+    }
+
+    var expEl = document.getElementById('explanationText');
+    expEl.className = 'text-base leading-relaxed text-slate-200 font-bold log-in';
+    // Description is generated internally from algorithm state, not from user input
+    expEl.innerHTML = state.description;
+    void expEl.offsetWidth;
+}
+
+function spawnFx(state) {
+    var layer = document.getElementById('fxLayer');
+    layer.textContent = '';
+    var svg = document.getElementById('mountainSvg');
+    var W = svg.clientWidth || 700;
+    var H = svg.clientHeight || 460;
+
+    if (state.sortedPeaks.length === 0) return;
+
+    var cs = getCoordSystem(state.sortedPeaks, W, H);
+
+    if (state.activeIdx >= 0 && state.sortedPeaks[state.activeIdx]) {
+        var p = state.sortedPeaks[state.activeIdx];
+        var px = cs.toSvgX(p.x);
+        var py = cs.toSvgY(p.y);
+
+        if (state.role === 'eaten') {
+            var burpEmojis = ['😋', '*嗝*', '🫧'];
+            for (var b = 0; b < burpEmojis.length; b++) {
+                var span = document.createElement('div');
+                span.textContent = burpEmojis[b];
+                span.className = 'absolute text-xl burp-float';
+                span.style.left = (px - 10 + b * 25) + 'px';
+                span.style.top = (py - 20) + 'px';
+                span.style.animationDelay = (b * 200) + 'ms';
+                layer.appendChild(span);
+            }
+        } else if (state.role === 'visible') {
+            var sparkles = ['✨', '👑', '🌟', '💪', '🏔️'];
+            for (var s = 0; s < sparkles.length; s++) {
+                var angle = (s / sparkles.length) * 2 * Math.PI;
+                var r = 45 + Math.random() * 15;
+                var sp = document.createElement('div');
+                sp.textContent = sparkles[s];
+                sp.className = 'absolute text-lg emoji-pop';
+                sp.style.left = (px + r * Math.cos(angle) - 10) + 'px';
+                sp.style.top = (py + r * Math.sin(angle) - 10) + 'px';
+                sp.style.animationDelay = (s * 80) + 'ms';
+                layer.appendChild(sp);
+            }
+        } else if (state.role === 'duplicate') {
+            var dupeEmojis = ['👯', '😱', '❌', '🪞'];
+            for (var d = 0; d < dupeEmojis.length; d++) {
+                var de = document.createElement('div');
+                de.textContent = dupeEmojis[d];
+                de.className = 'absolute text-xl emoji-pop';
+                de.style.left = (px - 40 + d * 28) + 'px';
+                de.style.top = (py - 50) + 'px';
+                de.style.animationDelay = (d * 100) + 'ms';
+                layer.appendChild(de);
+            }
+        }
+    }
+
+    if (state.role === 'finish') {
+        var cx = W / 2;
+        var cy = H / 2;
+        var finishEmojis = ['🏆', '🎉', '👑', '⛰️', '✨', '🫧'];
+        for (var f = 0; f < finishEmojis.length; f++) {
+            var fe = document.createElement('div');
+            fe.textContent = finishEmojis[f];
+            fe.className = 'absolute text-3xl emoji-pop';
+            fe.style.left = (cx - 90 + f * 36) + 'px';
+            fe.style.top = (cy - 20) + 'px';
+            fe.style.animationDelay = (f * 120) + 'ms';
+            layer.appendChild(fe);
+        }
+    }
+}
+
+// ─── Controls ────────────────────────────────────────────────────────────────
+function step(dir) {
+    var next = currentStepIndex + dir;
+    if (next >= 0 && next < steps.length) { currentStepIndex = next; render(); }
+    else if (next >= steps.length) stop();
+}
+function togglePlay() { isPlaying ? stop() : start(); }
+function start() {
+    if (currentStepIndex >= steps.length - 1) currentStepIndex = 0;
+    isPlaying = true;
+    var btn = document.getElementById('playPauseBtn');
+    btn.textContent = '';
+    var icon = document.createElement('i');
+    icon.setAttribute('data-lucide', 'pause');
+    icon.className = 'w-7 h-7 fill-current';
+    btn.appendChild(icon);
+    lucide.createIcons();
+    playInterval = setInterval(function() { step(1); }, 1800);
+}
+function stop() {
+    isPlaying = false;
+    clearInterval(playInterval);
+    var btn = document.getElementById('playPauseBtn');
+    btn.textContent = '';
+    var icon = document.createElement('i');
+    icon.setAttribute('data-lucide', 'play');
+    icon.className = 'w-7 h-7 fill-current';
+    btn.appendChild(icon);
+    lucide.createIcons();
+}
+
+function parsePeaks(str) {
+    try {
+        var parsed = JSON.parse(str);
+        if (Array.isArray(parsed) && parsed.every(function(p) { return Array.isArray(p) && p.length === 2; }))
+            return parsed;
+    } catch(e) {}
+    return [[2,2],[6,3],[5,4]];
+}
+
+function resetViz() {
+    stop();
+    originalPeaks = parsePeaks(document.getElementById('peaksInput').value);
+    steps = generateSteps(originalPeaks);
+    currentStepIndex = 0;
+    render();
+}
+
+window.onload = resetViz;
+window.onresize = function() { render(); };
+</script>
+</body>
+</html>
