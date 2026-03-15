@@ -44,96 +44,64 @@
         }
 
         .ll-node {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            width: 80px;
-            min-height: 90px;
-            border-radius: 12px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            width: 80px; min-height: 90px; border-radius: 12px;
             transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-            position: relative;
-            flex-shrink: 0;
+            position: relative; flex-shrink: 0;
         }
-        .ll-node.sentinel {
-            background: rgba(100,116,139,0.3);
-            border: 2px dashed rgba(100,116,139,0.5);
-        }
-        .ll-node.data-node {
-            background: rgba(168,85,247,0.15);
-            border: 2px solid rgba(168,85,247,0.4);
-            box-shadow: 0 0 10px rgba(168,85,247,0.15);
-        }
-        .ll-node.active-node {
+        .ll-node.sentinel { background: rgba(100,116,139,0.3); border: 2px dashed rgba(100,116,139,0.5); }
+        .ll-node.data-node { background: rgba(168,85,247,0.15); border: 2px solid rgba(168,85,247,0.4); box-shadow: 0 0 10px rgba(168,85,247,0.15); }
+        .ll-node.active-node { border-color: var(--pink); box-shadow: 0 0 20px var(--pink-glow), 0 0 40px rgba(236,72,153,0.2); transform: scale(1.1); }
+        .ll-node.evicted-node { border-color: var(--hot); box-shadow: 0 0 20px rgba(244,63,94,0.5); opacity: 0.6; }
+        .ll-node.promoted-node { border-color: var(--gold); box-shadow: 0 0 20px rgba(251,191,36,0.5); }
+        .ll-node.highlight-node { border-color: var(--cyan); box-shadow: 0 0 20px rgba(34,211,238,0.5); }
+
+        /* Floating detached node above the list */
+        .ll-node.detached-node {
             border-color: var(--pink);
-            box-shadow: 0 0 20px var(--pink-glow), 0 0 40px rgba(236,72,153,0.2);
-            transform: scale(1.1);
-        }
-        .ll-node.evicted-node {
-            border-color: var(--hot);
-            box-shadow: 0 0 20px rgba(244,63,94,0.5);
-            opacity: 0.6;
-        }
-        .ll-node.promoted-node {
-            border-color: var(--gold);
-            box-shadow: 0 0 20px rgba(251,191,36,0.5);
+            box-shadow: 0 0 20px var(--pink-glow);
+            background: rgba(236,72,153,0.1);
         }
 
-        .arrow-right {
-            color: rgba(168,85,247,0.5);
-            font-size: 20px;
-            flex-shrink: 0;
+        .arrow-seg {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            flex-shrink: 0; min-width: 30px; position: relative;
+        }
+        .arrow-seg .arr-top, .arrow-seg .arr-bot {
+            font-size: 11px; line-height: 1;
             transition: all 0.3s;
         }
-        .arrow-right.active-arrow {
-            color: var(--pink);
-            filter: drop-shadow(0 0 4px var(--pink-glow));
-        }
+        .arr-top { color: rgba(236,72,153,0.5); }
+        .arr-bot { color: rgba(168,85,247,0.4); }
+        .arrow-seg.active-arrow .arr-top { color: #fbbf24; filter: drop-shadow(0 0 4px rgba(251,191,36,0.6)); }
+        .arrow-seg.active-arrow .arr-bot { color: #fbbf24; filter: drop-shadow(0 0 4px rgba(251,191,36,0.6)); }
+        .arrow-seg.broken-arrow .arr-top { color: #f43f5e; text-decoration: line-through; }
+        .arrow-seg.broken-arrow .arr-bot { color: #f43f5e; text-decoration: line-through; }
+        .arrow-seg.new-arrow .arr-top { color: #4ade80; filter: drop-shadow(0 0 4px rgba(74,222,128,0.6)); }
+        .arrow-seg.new-arrow .arr-bot { color: #4ade80; filter: drop-shadow(0 0 4px rgba(74,222,128,0.6)); }
 
-        @keyframes heart-float {
-            0%   { transform: translateY(0) scale(1); opacity: 1; }
-            100% { transform: translateY(-50px) scale(1.3); opacity: 0; }
-        }
+        /* Code panel */
+        .code-line { padding: 2px 8px; border-radius: 4px; transition: all 0.3s; font-size: 11px; white-space: pre; }
+        .code-line.active-line { background: rgba(236,72,153,0.25); border-left: 3px solid var(--pink); }
+        .code-line.section-head { color: #a78bfa; font-weight: bold; margin-top: 6px; }
+        .code-line.section-head:first-child { margin-top: 0; }
+
+        @keyframes heart-float { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-50px) scale(1.3); opacity: 0; } }
         .heart-float { animation: heart-float 1.2s ease-out forwards; }
-
-        @keyframes evict-shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-5px) rotate(-3deg); }
-            75% { transform: translateX(5px) rotate(3deg); }
-        }
+        @keyframes evict-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px) rotate(-3deg); } 75% { transform: translateX(5px) rotate(3deg); } }
         .evict-shake { animation: evict-shake 0.4s ease-in-out; }
-
-        @keyframes promote-glow {
-            0%   { box-shadow: 0 0 5px rgba(251,191,36,0.3); }
-            50%  { box-shadow: 0 0 25px rgba(251,191,36,0.7), 0 0 50px rgba(251,191,36,0.3); }
-            100% { box-shadow: 0 0 15px rgba(251,191,36,0.5); }
-        }
+        @keyframes promote-glow { 0% { box-shadow: 0 0 5px rgba(251,191,36,0.3); } 50% { box-shadow: 0 0 25px rgba(251,191,36,0.7), 0 0 50px rgba(251,191,36,0.3); } 100% { box-shadow: 0 0 15px rgba(251,191,36,0.5); } }
         .promote-glow { animation: promote-glow 0.8s ease-out; }
-
-        @keyframes slide-in {
-            0%   { transform: translateX(-30px) scale(0.8); opacity: 0; }
-            100% { transform: translateX(0) scale(1); opacity: 1; }
-        }
+        @keyframes slide-in { 0% { transform: translateX(-30px) scale(0.8); opacity: 0; } 100% { transform: translateX(0) scale(1); opacity: 1; } }
         .slide-in { animation: slide-in 0.5s cubic-bezier(0.34,1.56,0.64,1); }
-
-        @keyframes emoji-pop {
-            0%   { transform: scale(0) translateY(10px); opacity: 0; }
-            60%  { transform: scale(1.3) translateY(-4px); opacity: 1; }
-            100% { transform: scale(1) translateY(0); opacity: 1; }
-        }
+        @keyframes emoji-pop { 0% { transform: scale(0) translateY(10px); opacity: 0; } 60% { transform: scale(1.3) translateY(-4px); opacity: 1; } 100% { transform: scale(1) translateY(0); opacity: 1; } }
         .emoji-pop { animation: emoji-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards; }
-
-        @keyframes log-in {
-            0%   { transform: translateX(-8px); opacity: 0; }
-            100% { transform: translateX(0); opacity: 1; }
-        }
+        @keyframes log-in { 0% { transform: translateX(-8px); opacity: 0; } 100% { transform: translateX(0); opacity: 1; } }
         .log-in { animation: log-in 0.3s ease-out; }
-
-        @keyframes cry-fall {
-            0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
-            100% { transform: translateY(60px) rotate(20deg); opacity: 0; }
-        }
+        @keyframes cry-fall { 0% { transform: translateY(0) rotate(0deg); opacity: 1; } 100% { transform: translateY(60px) rotate(20deg); opacity: 0; } }
         .cry-fall { animation: cry-fall 1s ease-in forwards; }
+        @keyframes pop-down { 0% { transform: translateY(-30px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+        .pop-down { animation: pop-down 0.4s cubic-bezier(0.34,1.56,0.64,1); }
 
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #1a0a1e; }
@@ -146,9 +114,7 @@
     <!-- HEADER -->
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-pink-900/50 pb-5">
         <div>
-            <h1 class="text-3xl md:text-5xl text-pink-400 title-font drop-shadow-[0_0_12px_rgba(236,72,153,0.5)]">
-                舔狗排队
-            </h1>
+            <h1 class="text-3xl md:text-5xl text-pink-400 title-font drop-shadow-[0_0_12px_rgba(236,72,153,0.5)]">舔狗排队</h1>
             <p class="text-slate-400 mt-1 text-sm cn-font">
                 <span class="text-pink-400 font-bold">算法：</span>双向链表 + 哈希表 · Doubly Linked List + HashMap
             </p>
@@ -193,91 +159,72 @@
 
     <!-- MAIN LAYOUT -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
-
         <!-- LEFT -->
         <div class="lg:col-span-8 space-y-4">
-
             <!-- Linked List -->
-            <div class="glass-card rounded-xl p-5 relative overflow-hidden" style="min-height:200px;">
-                <div class="text-xs text-pink-600 uppercase tracking-widest mb-3 font-bold cn-font">
-                    💕 女神的排队区 / Goddess Queue (Doubly Linked List)
-                </div>
-                <div class="text-[10px] text-slate-500 mb-3">← HEAD (女神最近聊过的) &nbsp;&nbsp;&nbsp;&nbsp; TAIL (快被忘记的冷宫) →</div>
-                <div id="linkedListContainer" class="flex items-center gap-1 overflow-x-auto pb-3 min-h-[100px]"></div>
+            <div class="glass-card rounded-xl p-5 relative overflow-hidden" style="min-height:240px;">
+                <div class="text-xs text-pink-600 uppercase tracking-widest mb-1 font-bold cn-font">💕 女神的排队区 / Goddess Queue (Doubly Linked List)</div>
+                <div class="text-[10px] text-slate-500 mb-2">← HEAD (女神最近聊过的) &nbsp;&nbsp;&nbsp;&nbsp; TAIL (快被忘记的冷宫) →</div>
+                <!-- Detached node area -->
+                <div id="detachedArea" class="mb-3 min-h-[40px] flex items-center gap-2"></div>
+                <!-- Main list -->
+                <div id="linkedListContainer" class="flex items-center gap-0 overflow-x-auto pb-3 min-h-[100px]"></div>
                 <div id="fxLayer" class="absolute inset-0 pointer-events-none" style="z-index:20;"></div>
             </div>
 
             <!-- HashMap -->
             <div class="glass-card rounded-xl p-5" style="min-height:80px;">
-                <div class="text-xs text-purple-500 uppercase tracking-widest mb-3 font-bold cn-font">
-                    📱 女神的通讯录 / HashMap (key → node pointer)
-                </div>
+                <div class="text-xs text-purple-500 uppercase tracking-widest mb-3 font-bold cn-font">📱 女神的通讯录 / HashMap (key → node pointer)</div>
                 <div id="hashMapContainer" class="flex flex-wrap gap-2"></div>
             </div>
 
             <!-- Log Box -->
-            <div class="glass-card rounded-xl p-5 min-h-[110px] flex items-start gap-4">
+            <div class="glass-card rounded-xl p-5 min-h-[100px] flex items-start gap-4">
                 <div class="bg-pink-900/20 p-3 rounded-lg text-pink-400 shrink-0 border border-pink-600/30">
                     <i data-lucide="heart" class="w-5 h-5"></i>
                 </div>
                 <div class="flex-1">
                     <h3 class="text-xs font-bold uppercase tracking-wider text-pink-600 mb-2 cn-font">舔狗日报 / Simp Daily</h3>
-                    <div id="explanationText" class="text-base leading-relaxed text-slate-200 font-bold log-in">
-                        待命中... / Standby...
-                    </div>
+                    <div id="explanationText" class="text-sm leading-relaxed text-slate-200 font-bold log-in">待命中...</div>
                 </div>
             </div>
         </div>
 
         <!-- RIGHT -->
         <div class="lg:col-span-4 space-y-4">
-
             <!-- Playback -->
             <div class="glass-card rounded-xl p-5 flex justify-center gap-5 items-center">
-                <button onclick="doStep(-1)" class="p-3 rounded-full hover:bg-white/10 transition-all active:scale-95 text-slate-400 hover:text-white">
-                    <i data-lucide="chevron-left" class="w-6 h-6"></i>
-                </button>
-                <button id="playPauseBtn" onclick="togglePlay()"
-                    class="p-5 rounded-full bg-pink-600 hover:bg-pink-500 text-white shadow-[0_0_20px_rgba(236,72,153,0.5)] transition-all active:scale-95 hover:scale-105 border border-pink-400">
-                    <i data-lucide="play" class="w-7 h-7 fill-current"></i>
-                </button>
-                <button onclick="doStep(1)" class="p-3 rounded-full hover:bg-white/10 transition-all active:scale-95 text-slate-400 hover:text-white">
-                    <i data-lucide="chevron-right" class="w-6 h-6"></i>
-                </button>
+                <button onclick="doStep(-1)" class="p-3 rounded-full hover:bg-white/10 transition-all active:scale-95 text-slate-400 hover:text-white"><i data-lucide="chevron-left" class="w-6 h-6"></i></button>
+                <button id="playPauseBtn" onclick="togglePlay()" class="p-5 rounded-full bg-pink-600 hover:bg-pink-500 text-white shadow-[0_0_20px_rgba(236,72,153,0.5)] transition-all active:scale-95 hover:scale-105 border border-pink-400"><i data-lucide="play" class="w-7 h-7 fill-current"></i></button>
+                <button onclick="doStep(1)" class="p-3 rounded-full hover:bg-white/10 transition-all active:scale-95 text-slate-400 hover:text-white"><i data-lucide="chevron-right" class="w-6 h-6"></i></button>
             </div>
-
-            <!-- Step counter -->
             <div class="glass-card rounded-xl p-3 text-center">
                 <div id="stepCounter" class="text-lg font-black font-mono text-slate-400">0 / 0</div>
+            </div>
+
+            <!-- Pseudocode Panel -->
+            <div class="glass-card rounded-xl p-4">
+                <div class="text-xs text-cyan-500 uppercase tracking-widest mb-3 font-bold">🔧 当前执行 / Pseudocode</div>
+                <div id="codePanel" class="space-y-0.5 font-mono text-[11px]"></div>
             </div>
 
             <!-- Operations List -->
             <div class="glass-card rounded-xl p-4">
                 <div class="text-xs text-pink-500 uppercase tracking-widest mb-3 cn-font font-bold">📋 操作列表 / Operations</div>
-                <div id="opsListContainer" class="space-y-1 max-h-[200px] overflow-y-auto"></div>
-            </div>
-
-            <!-- Key Insight -->
-            <div class="glass-card rounded-xl p-4">
-                <div class="text-xs text-yellow-500 uppercase tracking-widest mb-3 font-bold">🧠 核心思想 / Key Insight</div>
-                <div class="text-xs text-slate-300 space-y-2 cn-font leading-relaxed">
-                    <p>👸 女神 (Cache) 只记得最近聊过的人</p>
-                    <p>🏃 和女神聊天 (get/put) → 排到最前面</p>
-                    <p>🥶 太久没说话 → 被挤到队尾</p>
-                    <p>💔 队伍满了有新人来 → 队尾舔狗被踢走 (evict)</p>
-                    <p class="text-pink-400 font-bold">HashMap = 通讯录，秒找到人<br>Linked List = 排队顺序，秒插秒删</p>
-                </div>
+                <div id="opsListContainer" class="space-y-1 max-h-[160px] overflow-y-auto"></div>
             </div>
 
             <!-- Legend -->
             <div class="glass-card rounded-xl p-4 space-y-2 text-xs">
                 <div class="text-slate-500 uppercase tracking-widest mb-2">图例 / Legend</div>
-                <div class="flex items-center gap-2"><span class="text-xl">👸</span><span class="text-pink-400">HEAD/TAIL 哨兵节点</span></div>
-                <div class="flex items-center gap-2"><span class="text-xl">🧎</span><span class="text-purple-400">排队中的舔狗 (Cache Node)</span></div>
-                <div class="flex items-center gap-2"><span class="text-xl">💕</span><span class="text-yellow-400">刚聊过天 → 移到最前 (MRU)</span></div>
-                <div class="flex items-center gap-2"><span class="text-xl">🥶</span><span class="text-slate-400">快被遗忘了 (LRU / Tail)</span></div>
-                <div class="flex items-center gap-2"><span class="text-xl">💔</span><span class="text-rose-400">被踢出去了 (Evicted)</span></div>
-                <div class="flex items-center gap-2"><span class="text-xl">😢</span><span class="text-slate-500">没找到 (Cache Miss: -1)</span></div>
+                <div class="flex items-center gap-2"><span class="text-xl">👸</span><span class="text-pink-400">HEAD/TAIL 哨兵</span></div>
+                <div class="flex items-center gap-2"><span class="text-xl">🧎</span><span class="text-purple-400">排队中 (Node)</span></div>
+                <div class="flex items-center gap-2"><span class="text-xl">💕</span><span class="text-yellow-400">移到最前 (MRU)</span></div>
+                <div class="flex items-center gap-2"><span class="text-xl">🥶</span><span class="text-slate-400">快被遗忘 (LRU)</span></div>
+                <div class="flex items-center gap-2"><span class="text-xl">💔</span><span class="text-rose-400">被踢走 (Evicted)</span></div>
+                <div class="flex items-center gap-2"><span class="text-xl">😢</span><span class="text-slate-500">没找到 (Miss: -1)</span></div>
+                <div class="flex items-center gap-2"><span class="text-green-400 text-sm">→</span><span class="text-green-400">新建指针</span></div>
+                <div class="flex items-center gap-2"><span class="text-rose-400 text-sm line-through">→</span><span class="text-rose-400">断开指针</span></div>
             </div>
         </div>
     </div>
@@ -286,113 +233,221 @@
 <script>
 var steps = [], currentStepIndex = 0, isPlaying = false, playInterval;
 
+// ─── Snapshot: linearize the doubly linked list ──────────────────────────────
+// We maintain a real DLL and snapshot it at each sub-step.
+// Each snapshot records: list nodes in order, plus a "detached" node (if any),
+// and arrow annotations: { fromKey, toKey, type: 'normal'|'broken'|'new'|'active' }
+
 function generateSteps(capacity, ops) {
     var allSteps = [];
     var map = {};
-    var headNode = { key: 'HEAD', val: '👸', prev: null, next: null };
-    var tailNode = { key: 'TAIL', val: '👸', prev: null, next: null };
-    headNode.next = tailNode;
-    tailNode.prev = headNode;
+    var H = { key: 'HEAD', val: '👸', prev: null, next: null };
+    var T = { key: 'TAIL', val: '👸', prev: null, next: null };
+    H.next = T; T.prev = H;
     var size = 0;
 
-    function removeNode(node) {
-        node.prev.next = node.next;
-        node.next.prev = node.prev;
+    function snap(detachedNode) {
+        var list = [], cur = H;
+        while (cur) { list.push({ key: cur.key, val: cur.val, isSentinel: cur.key === 'HEAD' || cur.key === 'TAIL' }); cur = cur.next; }
+        var me = [];
+        for (var k in map) { if (map.hasOwnProperty(k)) me.push({ key: k, val: map[k].val }); }
+        var det = detachedNode ? { key: detachedNode.key, val: detachedNode.val } : null;
+        return { list: list, mapEntries: me, size: size, capacity: capacity, detached: det };
     }
-    function insertAfterHead(node) {
-        node.next = headNode.next;
-        node.prev = headNode;
-        headNode.next.prev = node;
-        headNode.next = node;
-    }
-    function snapshot() {
-        var list = [];
-        var cur = headNode;
-        while (cur) {
-            list.push({ key: cur.key, val: cur.val, isSentinel: cur.key === 'HEAD' || cur.key === 'TAIL' });
-            cur = cur.next;
-        }
-        var mapKeys = [];
-        for (var k in map) {
-            if (map.hasOwnProperty(k)) mapKeys.push({ key: k, val: map[k].val });
-        }
-        return { list: list, mapEntries: mapKeys, size: size, capacity: capacity };
-    }
-    function desc(html) { return html; }
 
-    allSteps.push({
-        role: 'init', snap: snapshot(), op: null, returnVal: null,
-        activeKey: null, evictedKey: null, promotedKey: null,
-        description: desc('<div class="cn-font">👸 女神发了条朋友圈，舔狗们蠢蠢欲动！排队区容量 = <strong class="text-pink-400">' + capacity + '</strong>。<br>HEAD 和 TAIL 是哨兵节点（女神的左右护法），中间还没人敢上。</div><div class="text-sm opacity-50 mt-1 font-normal">Cache initialized. Capacity=' + capacity + '. HEAD↔TAIL sentinels ready.</div>')
-    });
+    function pushStep(role, opStr, retVal, activeKey, evictedKey, promotedKey, highlightKeys, arrowAnnotations, codeLine, desc, detachedNode) {
+        allSteps.push({
+            role: role, snap: snap(detachedNode), op: opStr, returnVal: retVal,
+            activeKey: activeKey, evictedKey: evictedKey, promotedKey: promotedKey,
+            highlightKeys: highlightKeys || [], arrowAnnotations: arrowAnnotations || [],
+            codeLine: codeLine || -1, description: desc
+        });
+    }
+
+    // Pseudocode lines (shown in code panel)
+    // We'll reference these by index
+    // { text, isHead } — isHead marks section headers
+    var CODE_LINES = [
+        { text: 'def removeNode(node):',             head: true  }, // 0
+        { text: '    node.prev.next = node.next',    head: false }, // 1
+        { text: '    node.next.prev = node.prev',    head: false }, // 2
+        { text: 'def insertAfterHead(node):',        head: true  }, // 3
+        { text: '    oldFirst = head.next',          head: false }, // 4
+        { text: '    head.next  = node',             head: false }, // 5
+        { text: '    node.prev  = head',             head: false }, // 6
+        { text: '    node.next  = oldFirst',         head: false }, // 7
+        { text: '    oldFirst.prev = node',          head: false }, // 8
+        { text: 'map[key] = node   # 存入通讯录',    head: true  }, // 9
+        { text: 'del map[key]      # 从通讯录删除',   head: true  }, // 10
+        { text: 'return map[key].val',               head: true  }, // 11
+        { text: 'return -1         # 查无此人',      head: true  }, // 12
+        { text: 'node.val = newVal # 更新值',        head: true  }, // 13
+        { text: 'size += 1',                         head: true  }, // 14
+        { text: 'size -= 1  (evict LRU)',            head: true  }, // 15
+    ];
+
+    // Store code lines for rendering
+    allSteps.codeLines = CODE_LINES;
+
+    // ─── INIT ────
+    pushStep('init', null, null, null, null, null, [], [], -1,
+        '<div class="cn-font">👸 女神发了条朋友圈，舔狗们蠢蠢欲动！排队区容量 = <strong class="text-pink-400">' + capacity + '</strong>。<br>HEAD ⇄ TAIL 哨兵就位，中间还没人敢上。</div><div class="text-sm opacity-50 mt-1 font-normal">Cache init. Capacity=' + capacity + '. HEAD↔TAIL ready.</div>');
 
     for (var i = 0; i < ops.length; i++) {
         var op = ops[i];
-        if (op.type === 'put') {
-            var key = op.key, val = op.val;
-            if (map.hasOwnProperty(key)) {
-                var en = map[key], oldVal = en.val;
-                removeNode(en); en.val = val; insertAfterHead(en);
-                allSteps.push({
-                    role: 'put-update', snap: snapshot(), op: 'put(' + key + ',' + val + ')',
-                    returnVal: null, activeKey: String(key), evictedKey: null, promotedKey: String(key),
-                    description: desc('<div class="cn-font">💕 <strong class="text-yellow-400">put(' + key + ',' + val + ')</strong> — 舔狗 <strong class="text-purple-400">' + key + '</strong> 又来找女神了！<br>已在队里(旧值=' + oldVal + ')，更新为 <strong class="text-yellow-300">' + val + '</strong>，直接插队到最前面！别的舔狗只能看着 😤</div><div class="text-sm opacity-50 mt-1 font-normal">Key ' + key + ' exists. Update val ' + oldVal + '→' + val + '. Move to front (MRU).</div>')
-                });
+
+        if (op.type === 'get') {
+            var gk = op.key, gkStr = String(gk);
+            if (!map.hasOwnProperty(gk)) {
+                // ─── GET MISS ────
+                pushStep('get-miss', 'get(' + gk + ')', -1, null, null, null, [], [], 12,
+                    '<div class="cn-font">😢 <strong class="text-cyan-400">get(' + gk + ')</strong> — 女神翻了翻通讯录… <span class="text-rose-400">查无此人！</span>返回 <strong class="text-rose-400">-1</strong>。<br><span class="text-slate-500">你谁啊？我不认识你 🙄</span></div>');
             } else {
-                var nn = { key: String(key), val: val, prev: null, next: null };
-                map[key] = nn; insertAfterHead(nn); size++;
-                if (size > capacity) {
-                    var lru = tailNode.prev, ek = lru.key, ev = lru.val;
-                    removeNode(lru); delete map[ek]; size--;
-                    allSteps.push({
-                        role: 'put-evict', snap: snapshot(), op: 'put(' + key + ',' + val + ')',
-                        returnVal: null, activeKey: String(key), evictedKey: String(ek), promotedKey: null,
-                        description: desc('<div class="cn-font">💔 <strong class="text-yellow-400">put(' + key + ',' + val + ')</strong> — 新舔狗 <strong class="text-purple-400">' + key + '</strong> 来排队！<br>但队伍满了… 队尾的 <strong class="text-rose-400">' + ek + '</strong>(val=' + ev + ') 太久没找女神说话，被无情踢走！😭<br><span class="text-pink-400">女神：下一个～</span></div><div class="text-sm opacity-50 mt-1 font-normal">New key ' + key + '. Full! Evict LRU key=' + ek + '. Insert ' + key + ' at front.</div>')
-                    });
-                } else {
-                    allSteps.push({
-                        role: 'put-new', snap: snapshot(), op: 'put(' + key + ',' + val + ')',
-                        returnVal: null, activeKey: String(key), evictedKey: null, promotedKey: null,
-                        description: desc('<div class="cn-font">🧎 <strong class="text-yellow-400">put(' + key + ',' + val + ')</strong> — 新舔狗 <strong class="text-purple-400">' + key + '</strong> 加入排队！<br>直接插到队头，和女神距离最近！当前排队 <strong class="text-pink-400">' + size + '/' + capacity + '</strong> 人。</div><div class="text-sm opacity-50 mt-1 font-normal">New key ' + key + '=' + val + ' at front. Size=' + size + '/' + capacity + '.</div>')
-                    });
-                }
-            }
-        } else if (op.type === 'get') {
-            var gk = op.key;
-            if (map.hasOwnProperty(gk)) {
+                // ─── GET HIT: step-by-step ────
                 var gn = map[gk], gv = gn.val;
-                removeNode(gn); insertAfterHead(gn);
-                allSteps.push({
-                    role: 'get-hit', snap: snapshot(), op: 'get(' + gk + ')',
-                    returnVal: gv, activeKey: String(gk), evictedKey: null, promotedKey: String(gk),
-                    description: desc('<div class="cn-font">💕 <strong class="text-cyan-400">get(' + gk + ')</strong> — 女神主动找 <strong class="text-purple-400">' + gk + '</strong> 聊天了！<br>返回 <strong class="text-yellow-400">' + gv + '</strong>，并把 ' + gk + ' 拉到最前面！<br><span class="text-pink-300">其他舔狗：凭什么啊！😤</span></div><div class="text-sm opacity-50 mt-1 font-normal">Cache HIT! get(' + gk + ')=' + gv + '. Move to front.</div>')
-                });
+                var gprev = gn.prev.key, gnext = gn.next.key;
+
+                // Step 1: announce get hit + lookup
+                pushStep('get-announce', 'get(' + gk + ')', gv, gkStr, null, null, [gkStr], [], 11,
+                    '<div class="cn-font">🔍 <strong class="text-cyan-400">get(' + gk + ')</strong> — 在通讯录里找到了 <strong class="text-purple-400">' + gk + '</strong>！val = <strong class="text-yellow-400">' + gv + '</strong>。<br>现在要把他拉到最前面（moveToHead）。</div>');
+
+                // Step 2: remove — node.prev.next = node.next
+                gn.prev.next = gn.next;
+                pushStep('ptr-op', 'get(' + gk + ')', gv, gkStr, null, null, [gprev, gkStr],
+                    [{ from: gprev, to: gnext, type: 'new' }, { from: gprev, to: gkStr, type: 'broken' }], 1,
+                    '<div class="cn-font">✂️ <code class="text-cyan-300">node.prev.next = node.next</code><br><strong class="text-purple-300">' + gprev + '</strong>.next 不再指向 <strong class="text-pink-300">' + gk + '</strong>，改指向 <strong class="text-purple-300">' + gnext + '</strong><br><span class="text-slate-500">"' + gprev + '说：你走吧，我直接跟' + gnext + '接上了"</span></div>', gn);
+
+                // Step 3: remove — node.next.prev = node.prev
+                gn.next.prev = gn.prev;
+                pushStep('ptr-op', 'get(' + gk + ')', gv, gkStr, null, null, [gnext, gkStr],
+                    [{ from: gnext, to: gprev, type: 'new' }, { from: gnext, to: gkStr, type: 'broken' }], 2,
+                    '<div class="cn-font">✂️ <code class="text-cyan-300">node.next.prev = node.prev</code><br><strong class="text-purple-300">' + gnext + '</strong>.prev 不再指向 <strong class="text-pink-300">' + gk + '</strong>，改指向 <strong class="text-purple-300">' + gprev + '</strong><br><span class="text-slate-500">"' + gnext + '：谁？不认识，我前面是' + gprev + '"</span></div>', gn);
+
+                // Step 4: insert — oldFirst = head.next
+                var oldFirst = H.next.key;
+                pushStep('ptr-op', 'get(' + gk + ')', gv, gkStr, null, null, ['HEAD', oldFirst], [], 4,
+                    '<div class="cn-font">📌 <code class="text-cyan-300">oldFirst = head.next</code><br>记住当前队头 = <strong class="text-purple-300">' + oldFirst + '</strong>，一会要让他给新人让位。</div>', gn);
+
+                // Step 5: head.next = node
+                H.next = gn;
+                gn.prev = H;
+                pushStep('ptr-op', 'get(' + gk + ')', gv, gkStr, null, null, ['HEAD', gkStr],
+                    [{ from: 'HEAD', to: gkStr, type: 'new' }], 5,
+                    '<div class="cn-font">🔗 <code class="text-cyan-300">head.next = node; node.prev = head</code><br>HEAD 现在指向 <strong class="text-pink-300">' + gk + '</strong>！<br><span class="text-slate-500">"女神拉住了' + gk + '的手"</span></div>');
+
+                // Step 6: node.next = oldFirst; oldFirst.prev = node
+                gn.next = (oldFirst === 'TAIL') ? T : map[oldFirst] || T;
+                gn.next.prev = gn;
+                pushStep('get-hit', 'get(' + gk + ')', gv, gkStr, null, gkStr, [gkStr, oldFirst],
+                    [{ from: gkStr, to: oldFirst, type: 'new' }], 8,
+                    '<div class="cn-font">🔗 <code class="text-cyan-300">node.next = oldFirst; oldFirst.prev = node</code><br><strong class="text-pink-300">' + gk + '</strong> 插到 <strong class="text-purple-300">' + oldFirst + '</strong> 前面了！<br><span class="text-pink-300">排队完成！' + gk + ' 现在离女神最近 💕</span></div>');
+            }
+
+        } else if (op.type === 'put') {
+            var key = op.key, val = op.val, ks = String(key);
+
+            if (map.hasOwnProperty(key)) {
+                // ─── PUT UPDATE: step-by-step ────
+                var en = map[key], oldVal = en.val;
+                var eprev = en.prev.key, enext = en.next.key;
+
+                // Announce
+                pushStep('put-announce', 'put(' + key + ',' + val + ')', null, ks, null, null, [ks], [], -1,
+                    '<div class="cn-font">🔄 <strong class="text-yellow-400">put(' + key + ',' + val + ')</strong> — 舔狗 <strong class="text-purple-400">' + key + '</strong> 又来了！已在队里(旧值=' + oldVal + ')。<br>先从队里拆出来，更新值，再插到队头。</div>');
+
+                // Update val
+                en.val = val;
+                pushStep('ptr-op', 'put(' + key + ',' + val + ')', null, ks, null, null, [ks], [], 13,
+                    '<div class="cn-font">📝 <code class="text-cyan-300">node.val = ' + val + '</code><br>舔狗 <strong class="text-purple-400">' + key + '</strong> 带了新礼物来，value 从 ' + oldVal + ' 更新为 <strong class="text-yellow-300">' + val + '</strong>。</div>');
+
+                // Remove step 1
+                en.prev.next = en.next;
+                pushStep('ptr-op', 'put(' + key + ',' + val + ')', null, ks, null, null, [eprev, ks],
+                    [{ from: eprev, to: enext, type: 'new' }, { from: eprev, to: ks, type: 'broken' }], 1,
+                    '<div class="cn-font">✂️ <code class="text-cyan-300">node.prev.next = node.next</code><br><strong class="text-purple-300">' + eprev + '</strong>.next 跳过 <strong class="text-pink-300">' + key + '</strong> → <strong class="text-purple-300">' + enext + '</strong></div>', en);
+
+                // Remove step 2
+                en.next.prev = en.prev;
+                pushStep('ptr-op', 'put(' + key + ',' + val + ')', null, ks, null, null, [enext, ks],
+                    [{ from: enext, to: eprev, type: 'new' }, { from: enext, to: ks, type: 'broken' }], 2,
+                    '<div class="cn-font">✂️ <code class="text-cyan-300">node.next.prev = node.prev</code><br><strong class="text-purple-300">' + enext + '</strong>.prev 跳过 <strong class="text-pink-300">' + key + '</strong> → <strong class="text-purple-300">' + eprev + '</strong></div>', en);
+
+                // Insert
+                var of2 = H.next.key;
+                H.next = en; en.prev = H;
+                var targetNode = (of2 === 'TAIL') ? T : (map[of2] || T);
+                en.next = targetNode; targetNode.prev = en;
+                pushStep('put-update', 'put(' + key + ',' + val + ')', null, ks, null, ks, [ks, 'HEAD'],
+                    [{ from: 'HEAD', to: ks, type: 'new' }, { from: ks, to: of2, type: 'new' }], 8,
+                    '<div class="cn-font">🔗 插到队头！<code class="text-cyan-300">head↔node↔oldFirst</code><br><strong class="text-pink-300">' + key + '</strong> 又排到最前面了！别的舔狗只能看着 😤<br><span class="text-yellow-400">HEAD ⇄ ' + key + ' ⇄ ' + of2 + '</span></div>');
+
             } else {
-                allSteps.push({
-                    role: 'get-miss', snap: snapshot(), op: 'get(' + gk + ')',
-                    returnVal: -1, activeKey: null, evictedKey: null, promotedKey: null,
-                    description: desc('<div class="cn-font">😢 <strong class="text-cyan-400">get(' + gk + ')</strong> — 想找 <strong class="text-slate-400">' + gk + '</strong>？<br>女神翻了翻通讯录… <span class="text-rose-400">查无此人！</span>返回 <strong class="text-rose-400">-1</strong>。<br><span class="text-slate-500">你谁啊？我不认识你 🙄</span></div><div class="text-sm opacity-50 mt-1 font-normal">Cache MISS. get(' + gk + ')=-1. Key not found.</div>')
-                });
+                // ─── PUT NEW: step-by-step ────
+                var nn = { key: ks, val: val, prev: null, next: null };
+                map[key] = nn;
+
+                // Announce + map insert
+                pushStep('put-announce', 'put(' + key + ',' + val + ')', null, ks, null, null, [], [], 9,
+                    '<div class="cn-font">🧎 <strong class="text-yellow-400">put(' + key + ',' + val + ')</strong> — 新舔狗 <strong class="text-purple-400">' + key + '</strong> 出现了！<br>先在通讯录里记下：<code class="text-cyan-300">map[' + key + '] = newNode</code></div>');
+
+                // Insert step: oldFirst = head.next
+                var of3 = H.next.key;
+                pushStep('ptr-op', 'put(' + key + ',' + val + ')', null, ks, null, null, ['HEAD', of3], [], 4,
+                    '<div class="cn-font">📌 <code class="text-cyan-300">oldFirst = head.next</code> = <strong class="text-purple-300">' + of3 + '</strong><br>记住当前队头，准备给新人插队。</div>', nn);
+
+                // head.next = node, node.prev = head, node.next = oldFirst, oldFirst.prev = node
+                H.next = nn; nn.prev = H;
+                var targetNode2 = (of3 === 'TAIL') ? T : (map[of3] || T);
+                nn.next = targetNode2; targetNode2.prev = nn;
+                size++;
+
+                pushStep('put-new', 'put(' + key + ',' + val + ')', null, ks, null, null, [ks, 'HEAD', of3],
+                    [{ from: 'HEAD', to: ks, type: 'new' }, { from: ks, to: of3, type: 'new' }], 14,
+                    '<div class="cn-font">🔗 <code class="text-cyan-300">head↔node↔oldFirst</code> + <code>size++</code><br>新舔狗 <strong class="text-pink-300">' + key + '</strong> 插到队头了！<br>当前排队 <strong class="text-pink-400">' + size + '/' + capacity + '</strong> 人。<br><span class="text-yellow-400">HEAD ⇄ ' + key + ' ⇄ ' + of3 + '</span></div>');
+
+                // Evict if over capacity
+                if (size > capacity) {
+                    var lru = T.prev;
+                    var ek = lru.key, ev = lru.val;
+                    var lruPrev = lru.prev.key;
+
+                    // Evict announce
+                    pushStep('evict-announce', 'put(' + key + ',' + val + ')', null, ks, ek, null, [ek], [], -1,
+                        '<div class="cn-font">💔 队伍满了！必须踢掉队尾的 <strong class="text-rose-400">' + ek + '</strong>(val=' + ev + ')...<br><span class="text-slate-500">"' + ek + '太久没找女神说话了"</span></div>');
+
+                    // Remove LRU: tail.prev.prev.next = tail
+                    lru.prev.next = T;
+                    pushStep('ptr-op', 'put(' + key + ',' + val + ')', null, ks, ek, null, [lruPrev, ek],
+                        [{ from: lruPrev, to: 'TAIL', type: 'new' }, { from: lruPrev, to: ek, type: 'broken' }], 1,
+                        '<div class="cn-font">✂️ <code class="text-cyan-300">' + lruPrev + '.next = TAIL</code><br>跳过 <strong class="text-rose-400">' + ek + '</strong>，<strong class="text-purple-300">' + lruPrev + '</strong> 直接连 TAIL。</div>');
+
+                    // tail.prev = lru.prev
+                    T.prev = lru.prev;
+                    delete map[ek];
+                    size--;
+                    pushStep('put-evict', 'put(' + key + ',' + val + ')', null, ks, ek, null, ['TAIL', lruPrev],
+                        [{ from: 'TAIL', to: lruPrev, type: 'new' }], 15,
+                        '<div class="cn-font">✂️ <code class="text-cyan-300">tail.prev = ' + lruPrev + '</code> + <code>delete map[' + ek + ']</code> + <code>size--</code><br><strong class="text-rose-400">' + ek + '</strong> 被彻底踢出去了！从通讯录删除！😭<br><span class="text-pink-400">女神：下一个～</span></div>');
+                }
             }
         }
     }
 
-    var fl = [];
-    var fc = headNode.next;
-    while (fc !== tailNode) { fl.push(fc.key + '=' + fc.val); fc = fc.next; }
-    allSteps.push({
-        role: 'finish', snap: snapshot(), op: null, returnVal: null,
-        activeKey: null, evictedKey: null, promotedKey: null,
-        description: desc('<div class="cn-font">🏆 所有操作完毕！女神的排队区最终状态：<br><strong class="text-pink-400">[' + (fl.length > 0 ? fl.join(' → ') : '空') + ']</strong><br>从最近聊过 → 最久没聊。舔狗们，散了吧 🚶‍♂️</div><div class="text-sm opacity-50 mt-1 font-normal">Done. Final cache: [' + fl.join('→') + ']. MRU→LRU.</div>')
-    });
+    // ─── FINISH ────
+    var fl = [], fc = H.next;
+    while (fc !== T) { fl.push(fc.key + '=' + fc.val); fc = fc.next; }
+    pushStep('finish', null, null, null, null, null, [], [], -1,
+        '<div class="cn-font">🏆 所有操作完毕！最终排队：<br><strong class="text-pink-400">[' + (fl.length > 0 ? fl.join(' ⇄ ') : '空') + ']</strong><br>从最近聊过 → 最久没聊。舔狗们，散了吧 🚶‍♂️</div>');
 
     return allSteps;
 }
 
+// ─── RENDERING ───────────────────────────────────────────────────────────────
 function render() {
     var state = steps[currentStepIndex];
     renderLinkedList(state);
     renderHashMap(state);
+    renderCodePanel(state);
     renderOpsList(state);
     updateStats(state);
     spawnFx(state);
@@ -402,56 +457,100 @@ function render() {
 function renderLinkedList(state) {
     var c = document.getElementById('linkedListContainer');
     c.textContent = '';
+    var da = document.getElementById('detachedArea');
+    da.textContent = '';
+
     var list = state.snap.list;
+    var det = state.snap.detached;
+    var arrows = state.arrowAnnotations || [];
+    var hlKeys = state.highlightKeys || [];
+
+    // Render detached node if present
+    if (det) {
+        var detLabel = document.createElement('span');
+        detLabel.className = 'text-[10px] text-pink-400 mr-1';
+        detLabel.textContent = '🔌 拆出来的:';
+        da.appendChild(detLabel);
+
+        var detDiv = document.createElement('div');
+        detDiv.className = 'll-node detached-node pop-down';
+        detDiv.style.width = '70px'; detDiv.style.minHeight = '70px';
+
+        var de1 = document.createElement('div'); de1.className = 'text-lg mb-0.5'; de1.textContent = '🏃'; detDiv.appendChild(de1);
+        var de2 = document.createElement('div'); de2.className = 'text-xs font-bold'; de2.style.color = '#ec4899'; de2.textContent = 'k=' + det.key; detDiv.appendChild(de2);
+        var de3 = document.createElement('div'); de3.className = 'text-[10px] text-slate-400'; de3.textContent = 'v=' + det.val; detDiv.appendChild(de3);
+        da.appendChild(detDiv);
+    }
+
+    // Render main list
     for (var i = 0; i < list.length; i++) {
         var node = list[i];
+
+        // Arrow before node (except first)
         if (i > 0) {
-            var arrow = document.createElement('div');
-            arrow.className = 'arrow-right flex flex-col items-center';
-            if (state.activeKey && (String(list[i].key) === state.activeKey || String(list[i-1].key) === state.activeKey))
-                arrow.className += ' active-arrow';
-            var al = document.createElement('div');
-            al.textContent = '⇄'; al.style.fontSize = '16px';
-            arrow.appendChild(al);
-            c.appendChild(arrow);
+            var prevKey = String(list[i - 1].key);
+            var curKey = String(node.key);
+
+            var arrowDiv = document.createElement('div');
+            var arrowCls = 'arrow-seg';
+
+            // Check arrow annotations
+            var arrowType = 'normal';
+            for (var a = 0; a < arrows.length; a++) {
+                if (String(arrows[a].from) === prevKey && String(arrows[a].to) === curKey) { arrowType = arrows[a].type; break; }
+                if (String(arrows[a].from) === curKey && String(arrows[a].to) === prevKey) { arrowType = arrows[a].type; break; }
+            }
+            if (arrowType === 'new') arrowCls += ' new-arrow';
+            else if (arrowType === 'broken') arrowCls += ' broken-arrow';
+            else if (arrowType === 'active') arrowCls += ' active-arrow';
+
+            arrowDiv.className = arrowCls;
+            var at = document.createElement('div'); at.className = 'arr-top'; at.textContent = '→'; arrowDiv.appendChild(at);
+            var ab = document.createElement('div'); ab.className = 'arr-bot'; ab.textContent = '←'; arrowDiv.appendChild(ab);
+            c.appendChild(arrowDiv);
         }
+
         var div = document.createElement('div');
         var cls = 'll-node';
+        var nk = String(node.key);
         if (node.isSentinel) { cls += ' sentinel'; }
         else {
             cls += ' data-node';
-            if (String(node.key) === state.activeKey) cls += ' active-node slide-in';
-            if (String(node.key) === state.evictedKey) cls += ' evicted-node evict-shake';
-            if (String(node.key) === state.promotedKey) cls += ' promoted-node promote-glow';
+            if (nk === state.activeKey) cls += ' active-node';
+            if (nk === state.evictedKey) cls += ' evicted-node evict-shake';
+            if (nk === state.promotedKey) cls += ' promoted-node promote-glow';
+            if (hlKeys.indexOf(nk) >= 0 && nk !== state.activeKey && nk !== state.evictedKey && nk !== state.promotedKey) cls += ' highlight-node';
         }
+        if (node.isSentinel && hlKeys.indexOf(nk) >= 0) cls += ' highlight-node';
         div.className = cls;
+
         var emoji;
         if (node.isSentinel) { emoji = node.key === 'HEAD' ? '👸' : '🚪'; }
-        else if (String(node.key) === state.evictedKey) { emoji = '💔'; }
-        else if (String(node.key) === state.promotedKey) { emoji = '💕'; }
-        else if (String(node.key) === state.activeKey) { emoji = '🧎'; }
+        else if (nk === state.evictedKey) { emoji = '💔'; }
+        else if (nk === state.promotedKey) { emoji = '💕'; }
+        else if (nk === state.activeKey) { emoji = '🧎'; }
         else { emoji = (list.length - 1 - i) <= 1 ? '🥶' : '🧎'; }
 
-        var ed = document.createElement('div');
-        ed.className = 'text-xl mb-1'; ed.textContent = emoji;
-        div.appendChild(ed);
+        var ed = document.createElement('div'); ed.className = 'text-xl mb-1'; ed.textContent = emoji; div.appendChild(ed);
 
         if (node.isSentinel) {
-            var ld = document.createElement('div');
-            ld.className = 'text-[10px] font-bold'; ld.style.color = '#ec4899';
-            ld.textContent = node.key; div.appendChild(ld);
+            var ld = document.createElement('div'); ld.className = 'text-[10px] font-bold'; ld.style.color = '#ec4899'; ld.textContent = node.key; div.appendChild(ld);
         } else {
-            var kd = document.createElement('div');
-            kd.className = 'text-xs font-bold';
+            var kd = document.createElement('div'); kd.className = 'text-xs font-bold';
             var kc = '#a855f7';
-            if (String(node.key) === state.activeKey) kc = '#ec4899';
-            if (String(node.key) === state.promotedKey) kc = '#fbbf24';
-            if (String(node.key) === state.evictedKey) kc = '#f43f5e';
-            kd.style.color = kc; kd.textContent = 'k=' + node.key;
-            div.appendChild(kd);
-            var vd = document.createElement('div');
-            vd.className = 'text-[10px] text-slate-400'; vd.textContent = 'v=' + node.val;
-            div.appendChild(vd);
+            if (nk === state.activeKey) kc = '#ec4899';
+            if (nk === state.promotedKey) kc = '#fbbf24';
+            if (nk === state.evictedKey) kc = '#f43f5e';
+            kd.style.color = kc; kd.textContent = 'k=' + node.key; div.appendChild(kd);
+            var vd = document.createElement('div'); vd.className = 'text-[10px] text-slate-400'; vd.textContent = 'v=' + node.val; div.appendChild(vd);
+
+            // Show prev/next pointers
+            var prevNode = i > 0 ? list[i-1].key : '?';
+            var nextNode = i < list.length - 1 ? list[i+1].key : '?';
+            var ptrs = document.createElement('div');
+            ptrs.className = 'text-[8px] text-slate-600 mt-0.5';
+            ptrs.textContent = prevNode + '←→' + nextNode;
+            div.appendChild(ptrs);
         }
         c.appendChild(div);
     }
@@ -462,46 +561,75 @@ function renderHashMap(state) {
     c.textContent = '';
     var entries = state.snap.mapEntries;
     if (entries.length === 0) {
-        var e = document.createElement('div');
-        e.className = 'text-slate-600 text-xs cn-font';
-        e.textContent = '通讯录是空的... 还没有舔狗来排队';
-        c.appendChild(e); return;
+        var e = document.createElement('div'); e.className = 'text-slate-600 text-xs cn-font'; e.textContent = '通讯录是空的...'; c.appendChild(e); return;
     }
     for (var i = 0; i < entries.length; i++) {
         var entry = entries[i];
         var b = document.createElement('div');
         var cls = 'px-3 py-2 rounded-lg text-xs font-mono flex items-center gap-2 transition-all';
-        if (String(entry.key) === state.activeKey || String(entry.key) === state.promotedKey)
-            cls += ' bg-pink-900/40 border border-pink-500/50';
+        if (String(entry.key) === state.activeKey || String(entry.key) === state.promotedKey) cls += ' bg-pink-900/40 border border-pink-500/50';
+        else if (String(entry.key) === state.evictedKey) cls += ' bg-red-900/30 border border-red-500/50 opacity-50';
         else cls += ' bg-purple-900/20 border border-purple-700/30';
         b.className = cls;
-
         var ks = document.createElement('span'); ks.className = 'text-purple-300 font-bold'; ks.textContent = entry.key; b.appendChild(ks);
-        var as = document.createElement('span'); as.className = 'text-slate-600'; as.textContent = '→'; b.appendChild(as);
+        var as2 = document.createElement('span'); as2.className = 'text-slate-600'; as2.textContent = '→'; b.appendChild(as2);
         var vs = document.createElement('span'); vs.className = 'text-pink-300'; vs.textContent = entry.val; b.appendChild(vs);
-        var ps = document.createElement('span'); ps.className = 'text-slate-600 text-[9px]'; ps.textContent = '📍node'; b.appendChild(ps);
         c.appendChild(b);
+    }
+}
+
+function renderCodePanel(state) {
+    var c = document.getElementById('codePanel');
+    c.textContent = '';
+    var codeLines = steps.codeLines || [];
+    for (var i = 0; i < codeLines.length; i++) {
+        var line = codeLines[i];
+        var div = document.createElement('div');
+        var cls = 'code-line';
+        if (line.head) cls += ' section-head';
+        if (i === state.codeLine) cls += ' active-line text-cyan-300';
+        else cls += ' text-slate-500';
+        div.className = cls;
+        div.textContent = line.text;
+        c.appendChild(div);
     }
 }
 
 function renderOpsList(state) {
     var c = document.getElementById('opsListContainer');
     c.textContent = '';
+    // Group steps by operation — find unique op strings
+    var seenOps = [], opStepMap = {};
     for (var i = 0; i < steps.length; i++) {
         var s = steps[i];
         if (!s.op) continue;
+        if (!opStepMap[s.op + '_' + i]) {
+            // Find first step index for this high-level op
+            if (seenOps.length === 0 || seenOps[seenOps.length - 1].op !== s.op) {
+                seenOps.push({ op: s.op, firstIdx: i, lastIdx: i, role: s.role, retVal: s.returnVal });
+            } else {
+                seenOps[seenOps.length - 1].lastIdx = i;
+                if (s.returnVal !== null && s.returnVal !== undefined) seenOps[seenOps.length - 1].retVal = s.returnVal;
+                // Use the most descriptive role
+                if (s.role.indexOf('miss') >= 0 || s.role.indexOf('evict') >= 0 || s.role.indexOf('hit') >= 0 || s.role.indexOf('update') >= 0 || s.role.indexOf('new') >= 0)
+                    seenOps[seenOps.length - 1].role = s.role;
+            }
+        }
+    }
+    for (var j = 0; j < seenOps.length; j++) {
+        var so = seenOps[j];
         var row = document.createElement('div');
         var cls = 'flex items-center gap-2 px-2 py-1 rounded text-xs font-mono transition-all';
-        if (i < currentStepIndex) cls += ' opacity-40';
-        else if (i === currentStepIndex) cls += ' bg-pink-900/40 border border-pink-500/50';
+        if (currentStepIndex > so.lastIdx) cls += ' opacity-40';
+        else if (currentStepIndex >= so.firstIdx && currentStepIndex <= so.lastIdx) cls += ' bg-pink-900/40 border border-pink-500/50';
         row.className = cls;
-        var emoji = s.role === 'get-hit' ? '💕' : s.role === 'get-miss' ? '😢' : s.role === 'put-evict' ? '💔' : s.role === 'put-update' ? '🔄' : '🧎';
+        var emoji = so.role === 'get-hit' ? '💕' : so.role === 'get-miss' ? '😢' : so.role === 'put-evict' ? '💔' : so.role === 'put-update' ? '🔄' : '🧎';
         var es = document.createElement('span'); es.textContent = emoji; row.appendChild(es);
-        var os = document.createElement('span'); os.className = 'text-slate-300'; os.textContent = s.op; row.appendChild(os);
-        if (s.returnVal !== null && s.returnVal !== undefined) {
+        var os = document.createElement('span'); os.className = 'text-slate-300'; os.textContent = so.op; row.appendChild(os);
+        if (so.retVal !== null && so.retVal !== undefined) {
             var rs = document.createElement('span'); rs.className = 'ml-auto';
-            rs.style.color = s.returnVal === -1 ? '#f43f5e' : '#4ade80';
-            rs.textContent = '→ ' + s.returnVal; row.appendChild(rs);
+            rs.style.color = so.retVal === -1 ? '#f43f5e' : '#4ade80';
+            rs.textContent = '→ ' + so.retVal; row.appendChild(rs);
         }
         c.appendChild(row);
     }
@@ -514,12 +642,10 @@ function updateStats(state) {
     document.getElementById('opDisplay').textContent = state.op || '—';
     var re = document.getElementById('returnDisplay');
     if (state.returnVal !== null && state.returnVal !== undefined) {
-        re.textContent = state.returnVal;
-        re.style.color = state.returnVal === -1 ? '#f43f5e' : '#4ade80';
+        re.textContent = state.returnVal; re.style.color = state.returnVal === -1 ? '#f43f5e' : '#4ade80';
     } else { re.textContent = '—'; re.style.color = '#a78bfa'; }
     var ee = document.getElementById('explanationText');
-    ee.className = 'text-base leading-relaxed text-slate-200 font-bold log-in';
-    // All description HTML is built from integer algorithm state only
+    ee.className = 'text-sm leading-relaxed text-slate-200 font-bold log-in';
     ee.innerHTML = state.description;
     void ee.offsetWidth;
 }
@@ -531,38 +657,31 @@ function spawnFx(state) {
     if (state.role === 'put-evict') {
         emojis = ['💔', '😭', '👋', '🥀'];
         for (i = 0; i < emojis.length; i++) {
-            span = document.createElement('div'); span.textContent = emojis[i];
-            span.className = 'absolute text-2xl cry-fall';
-            span.style.right = (20 + i * 30) + 'px'; span.style.top = '30px';
-            span.style.animationDelay = (i * 150) + 'ms'; layer.appendChild(span);
+            span = document.createElement('div'); span.textContent = emojis[i]; span.className = 'absolute text-2xl cry-fall';
+            span.style.right = (20 + i * 30) + 'px'; span.style.top = '30px'; span.style.animationDelay = (i * 150) + 'ms'; layer.appendChild(span);
         }
     } else if (state.role === 'get-hit' || state.role === 'put-update') {
         emojis = ['💕', '✨', '💖', '🌟', '😍'];
         for (i = 0; i < emojis.length; i++) {
-            span = document.createElement('div'); span.textContent = emojis[i];
-            span.className = 'absolute text-xl heart-float';
-            span.style.left = (40 + i * 35) + 'px'; span.style.top = '20px';
-            span.style.animationDelay = (i * 120) + 'ms'; layer.appendChild(span);
+            span = document.createElement('div'); span.textContent = emojis[i]; span.className = 'absolute text-xl heart-float';
+            span.style.left = (40 + i * 35) + 'px'; span.style.top = '20px'; span.style.animationDelay = (i * 120) + 'ms'; layer.appendChild(span);
         }
     } else if (state.role === 'get-miss') {
         emojis = ['😢', '❓', '🙄', '❌'];
         for (i = 0; i < emojis.length; i++) {
-            span = document.createElement('div'); span.textContent = emojis[i];
-            span.className = 'absolute text-xl emoji-pop';
-            span.style.left = (60 + i * 40) + 'px'; span.style.top = '30px';
-            span.style.animationDelay = (i * 100) + 'ms'; layer.appendChild(span);
+            span = document.createElement('div'); span.textContent = emojis[i]; span.className = 'absolute text-xl emoji-pop';
+            span.style.left = (60 + i * 40) + 'px'; span.style.top = '30px'; span.style.animationDelay = (i * 100) + 'ms'; layer.appendChild(span);
         }
     } else if (state.role === 'finish') {
-        emojis = ['🏆', '👸', '💤', '🎉', '✨'];
+        emojis = ['🏆', '👸', '🚶‍♂️', '🎉', '✨'];
         for (i = 0; i < emojis.length; i++) {
-            span = document.createElement('div'); span.textContent = emojis[i];
-            span.className = 'absolute text-3xl emoji-pop';
-            span.style.left = (80 + i * 40) + 'px'; span.style.top = '40px';
-            span.style.animationDelay = (i * 120) + 'ms'; layer.appendChild(span);
+            span = document.createElement('div'); span.textContent = emojis[i]; span.className = 'absolute text-3xl emoji-pop';
+            span.style.left = (80 + i * 40) + 'px'; span.style.top = '60px'; span.style.animationDelay = (i * 120) + 'ms'; layer.appendChild(span);
         }
     }
 }
 
+// ─── Controls ────────────────────────────────────────────────────────────────
 function doStep(dir) {
     var next = currentStepIndex + dir;
     if (next >= 0 && next < steps.length) { currentStepIndex = next; render(); }
@@ -572,16 +691,14 @@ function togglePlay() { isPlaying ? stop() : start(); }
 function start() {
     if (currentStepIndex >= steps.length - 1) currentStepIndex = 0;
     isPlaying = true;
-    var btn = document.getElementById('playPauseBtn');
-    btn.textContent = '';
+    var btn = document.getElementById('playPauseBtn'); btn.textContent = '';
     var ic = document.createElement('i'); ic.setAttribute('data-lucide', 'pause'); ic.className = 'w-7 h-7 fill-current';
     btn.appendChild(ic); lucide.createIcons();
-    playInterval = setInterval(function() { doStep(1); }, 2000);
+    playInterval = setInterval(function() { doStep(1); }, 1800);
 }
 function stop() {
     isPlaying = false; clearInterval(playInterval);
-    var btn = document.getElementById('playPauseBtn');
-    btn.textContent = '';
+    var btn = document.getElementById('playPauseBtn'); btn.textContent = '';
     var ic = document.createElement('i'); ic.setAttribute('data-lucide', 'play'); ic.className = 'w-7 h-7 fill-current';
     btn.appendChild(ic); lucide.createIcons();
 }
