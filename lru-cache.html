@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>舔狗排队 / Simp Queue — LRU Cache</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pacifico&family=Roboto+Mono:wght@400;700&family=Noto+Sans+SC:wght@700&display=swap');
+
+        :root {
+            --bg:       #1a0a1e;
+            --panel:    rgba(30, 15, 40, 0.8);
+            --border:   rgba(236, 72, 153, 0.2);
+            --pink:     #ec4899;
+            --pink-glow: rgba(236, 72, 153, 0.5);
+            --hot:      #f43f5e;
+            --gold:     #fbbf24;
+            --purple:   #a855f7;
+            --cyan:     #22d3ee;
+            --green:    #4ade80;
+            --gray:     #64748b;
+        }
+
+        body {
+            background-color: var(--bg);
+            background-image:
+                radial-gradient(ellipse at 20% 30%, rgba(236,72,153,0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 70%, rgba(168,85,247,0.06) 0%, transparent 50%);
+            color: #e2e8f0;
+            font-family: 'Roboto Mono', monospace;
+            min-height: 100vh;
+        }
+
+        .title-font { font-family: 'Pacifico', cursive; }
+        .cn-font    { font-family: 'Noto Sans SC', sans-serif; }
+
+        .glass-card {
+            background: var(--panel);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(236,72,153,0.06);
+        }
+
+        .ll-node {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 80px;
+            min-height: 90px;
+            border-radius: 12px;
+            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            flex-shrink: 0;
+        }
+        .ll-node.sentinel {
+            background: rgba(100,116,139,0.3);
+            border: 2px dashed rgba(100,116,139,0.5);
+        }
+        .ll-node.data-node {
+            background: rgba(168,85,247,0.15);
+            border: 2px solid rgba(168,85,247,0.4);
+            box-shadow: 0 0 10px rgba(168,85,247,0.15);
+        }
+        .ll-node.active-node {
+            border-color: var(--pink);
+            box-shadow: 0 0 20px var(--pink-glow), 0 0 40px rgba(236,72,153,0.2);
+            transform: scale(1.1);
+        }
+        .ll-node.evicted-node {
+            border-color: var(--hot);
+            box-shadow: 0 0 20px rgba(244,63,94,0.5);
+            opacity: 0.6;
+        }
+        .ll-node.promoted-node {
+            border-color: var(--gold);
+            box-shadow: 0 0 20px rgba(251,191,36,0.5);
+        }
+
+        .arrow-right {
+            color: rgba(168,85,247,0.5);
+            font-size: 20px;
+            flex-shrink: 0;
+            transition: all 0.3s;
+        }
+        .arrow-right.active-arrow {
+            color: var(--pink);
+            filter: drop-shadow(0 0 4px var(--pink-glow));
+        }
+
+        @keyframes heart-float {
+            0%   { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-50px) scale(1.3); opacity: 0; }
+        }
+        .heart-float { animation: heart-float 1.2s ease-out forwards; }
+
+        @keyframes evict-shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px) rotate(-3deg); }
+            75% { transform: translateX(5px) rotate(3deg); }
+        }
+        .evict-shake { animation: evict-shake 0.4s ease-in-out; }
+
+        @keyframes promote-glow {
+            0%   { box-shadow: 0 0 5px rgba(251,191,36,0.3); }
+            50%  { box-shadow: 0 0 25px rgba(251,191,36,0.7), 0 0 50px rgba(251,191,36,0.3); }
+            100% { box-shadow: 0 0 15px rgba(251,191,36,0.5); }
+        }
+        .promote-glow { animation: promote-glow 0.8s ease-out; }
+
+        @keyframes slide-in {
+            0%   { transform: translateX(-30px) scale(0.8); opacity: 0; }
+            100% { transform: translateX(0) scale(1); opacity: 1; }
+        }
+        .slide-in { animation: slide-in 0.5s cubic-bezier(0.34,1.56,0.64,1); }
+
+        @keyframes emoji-pop {
+            0%   { transform: scale(0) translateY(10px); opacity: 0; }
+            60%  { transform: scale(1.3) translateY(-4px); opacity: 1; }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
+        }
+        .emoji-pop { animation: emoji-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+
+        @keyframes log-in {
+            0%   { transform: translateX(-8px); opacity: 0; }
+            100% { transform: translateX(0); opacity: 1; }
+        }
+        .log-in { animation: log-in 0.3s ease-out; }
+
+        @keyframes cry-fall {
+            0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(60px) rotate(20deg); opacity: 0; }
+        }
+        .cry-fall { animation: cry-fall 1s ease-in forwards; }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #1a0a1e; }
+        ::-webkit-scrollbar-thumb { background: #4a1942; border-radius: 3px; }
+    </style>
+</head>
+<body class="p-4 md:p-6">
+<div class="max-w-7xl mx-auto space-y-5">
+
+    <!-- HEADER -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-pink-900/50 pb-5">
+        <div>
+            <h1 class="text-3xl md:text-5xl text-pink-400 title-font drop-shadow-[0_0_12px_rgba(236,72,153,0.5)]">
+                舔狗排队
+            </h1>
+            <p class="text-slate-400 mt-1 text-sm cn-font">
+                <span class="text-pink-400 font-bold">算法：</span>双向链表 + 哈希表 · Doubly Linked List + HashMap
+            </p>
+            <p class="text-slate-600 text-xs mt-1">LeetCode 146 · LRU Cache · Medium</p>
+        </div>
+        <div class="glass-card rounded-xl p-3 flex flex-col gap-2 min-w-[300px]">
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-pink-400 w-20">capacity =</span>
+                <input type="number" id="capInput" value="2" min="1" max="5"
+                    class="w-16 bg-black/40 border border-pink-900/40 rounded px-2 py-1 text-sm text-pink-200 focus:outline-none focus:border-pink-500 font-mono">
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-pink-400 w-20">ops =</span>
+                <input type="text" id="opsInput" value="put(1,1),put(2,2),get(1),put(3,3),get(2),put(4,4),get(1),get(3),get(4)"
+                    class="flex-1 bg-black/40 border border-pink-900/40 rounded px-2 py-1 text-xs text-pink-200 focus:outline-none focus:border-pink-500 font-mono">
+            </div>
+            <button onclick="resetViz()" class="w-full bg-pink-900 hover:bg-pink-700 text-white rounded-lg py-1.5 text-xs transition-colors border border-pink-500 flex items-center justify-center gap-2">
+                <i data-lucide="rotate-ccw" class="w-3 h-3"></i> 重置 Reset
+            </button>
+        </div>
+    </div>
+
+    <!-- TOP STATS -->
+    <div class="grid grid-cols-4 gap-3">
+        <div class="glass-card rounded-xl p-3 text-center">
+            <div class="text-[10px] text-pink-400 uppercase tracking-widest mb-1">操作 / Operation</div>
+            <div id="opDisplay" class="text-lg font-black font-mono text-pink-300">—</div>
+        </div>
+        <div class="glass-card rounded-xl p-3 text-center">
+            <div class="text-[10px] text-purple-400 uppercase tracking-widest mb-1">返回值 / Return</div>
+            <div id="returnDisplay" class="text-lg font-black font-mono text-purple-300">—</div>
+        </div>
+        <div class="glass-card rounded-xl p-3 text-center" style="border-color: rgba(236,72,153,0.3);">
+            <div class="text-[10px] text-pink-500 uppercase tracking-widest mb-1">排队人数 / Size</div>
+            <div id="sizeDisplay" class="text-2xl font-black font-mono text-pink-400 drop-shadow-[0_0_6px_rgba(236,72,153,0.4)]">—</div>
+        </div>
+        <div class="glass-card rounded-xl p-3 text-center">
+            <div class="text-[10px] uppercase tracking-widest mb-1" style="color:#fbbf24">容量 / Capacity</div>
+            <div id="capDisplay" class="text-2xl font-black font-mono text-yellow-400">—</div>
+        </div>
+    </div>
+
+    <!-- MAIN LAYOUT -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+        <!-- LEFT -->
+        <div class="lg:col-span-8 space-y-4">
+
+            <!-- Linked List -->
+            <div class="glass-card rounded-xl p-5 relative overflow-hidden" style="min-height:200px;">
+                <div class="text-xs text-pink-600 uppercase tracking-widest mb-3 font-bold cn-font">
+                    💕 女神的排队区 / Goddess Queue (Doubly Linked List)
+                </div>
+                <div class="text-[10px] text-slate-500 mb-3">← HEAD (女神最近聊过的) &nbsp;&nbsp;&nbsp;&nbsp; TAIL (快被忘记的冷宫) →</div>
+                <div id="linkedListContainer" class="flex items-center gap-1 overflow-x-auto pb-3 min-h-[100px]"></div>
+                <div id="fxLayer" class="absolute inset-0 pointer-events-none" style="z-index:20;"></div>
+            </div>
+
+            <!-- HashMap -->
+            <div class="glass-card rounded-xl p-5" style="min-height:80px;">
+                <div class="text-xs text-purple-500 uppercase tracking-widest mb-3 font-bold cn-font">
+                    📱 女神的通讯录 / HashMap (key → node pointer)
+                </div>
+                <div id="hashMapContainer" class="flex flex-wrap gap-2"></div>
+            </div>
+
+            <!-- Log Box -->
+            <div class="glass-card rounded-xl p-5 min-h-[110px] flex items-start gap-4">
+                <div class="bg-pink-900/20 p-3 rounded-lg text-pink-400 shrink-0 border border-pink-600/30">
+                    <i data-lucide="heart" class="w-5 h-5"></i>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-pink-600 mb-2 cn-font">舔狗日报 / Simp Daily</h3>
+                    <div id="explanationText" class="text-base leading-relaxed text-slate-200 font-bold log-in">
+                        待命中... / Standby...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT -->
+        <div class="lg:col-span-4 space-y-4">
+
+            <!-- Playback -->
+            <div class="glass-card rounded-xl p-5 flex justify-center gap-5 items-center">
+                <button onclick="doStep(-1)" class="p-3 rounded-full hover:bg-white/10 transition-all active:scale-95 text-slate-400 hover:text-white">
+                    <i data-lucide="chevron-left" class="w-6 h-6"></i>
+                </button>
+                <button id="playPauseBtn" onclick="togglePlay()"
+                    class="p-5 rounded-full bg-pink-600 hover:bg-pink-500 text-white shadow-[0_0_20px_rgba(236,72,153,0.5)] transition-all active:scale-95 hover:scale-105 border border-pink-400">
+                    <i data-lucide="play" class="w-7 h-7 fill-current"></i>
+                </button>
+                <button onclick="doStep(1)" class="p-3 rounded-full hover:bg-white/10 transition-all active:scale-95 text-slate-400 hover:text-white">
+                    <i data-lucide="chevron-right" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <!-- Step counter -->
+            <div class="glass-card rounded-xl p-3 text-center">
+                <div id="stepCounter" class="text-lg font-black font-mono text-slate-400">0 / 0</div>
+            </div>
+
+            <!-- Operations List -->
+            <div class="glass-card rounded-xl p-4">
+                <div class="text-xs text-pink-500 uppercase tracking-widest mb-3 cn-font font-bold">📋 操作列表 / Operations</div>
+                <div id="opsListContainer" class="space-y-1 max-h-[200px] overflow-y-auto"></div>
+            </div>
+
+            <!-- Key Insight -->
+            <div class="glass-card rounded-xl p-4">
+                <div class="text-xs text-yellow-500 uppercase tracking-widest mb-3 font-bold">🧠 核心思想 / Key Insight</div>
+                <div class="text-xs text-slate-300 space-y-2 cn-font leading-relaxed">
+                    <p>👸 女神 (Cache) 只记得最近聊过的人</p>
+                    <p>🏃 和女神聊天 (get/put) → 排到最前面</p>
+                    <p>🥶 太久没说话 → 被挤到队尾</p>
+                    <p>💔 队伍满了有新人来 → 队尾舔狗被踢走 (evict)</p>
+                    <p class="text-pink-400 font-bold">HashMap = 通讯录，秒找到人<br>Linked List = 排队顺序，秒插秒删</p>
+                </div>
+            </div>
+
+            <!-- Legend -->
+            <div class="glass-card rounded-xl p-4 space-y-2 text-xs">
+                <div class="text-slate-500 uppercase tracking-widest mb-2">图例 / Legend</div>
+                <div class="flex items-center gap-2"><span class="text-xl">👸</span><span class="text-pink-400">HEAD/TAIL 哨兵节点</span></div>
+                <div class="flex items-center gap-2"><span class="text-xl">🧎</span><span class="text-purple-400">排队中的舔狗 (Cache Node)</span></div>
+                <div class="flex items-center gap-2"><span class="text-xl">💕</span><span class="text-yellow-400">刚聊过天 → 移到最前 (MRU)</span></div>
+                <div class="flex items-center gap-2"><span class="text-xl">🥶</span><span class="text-slate-400">快被遗忘了 (LRU / Tail)</span></div>
+                <div class="flex items-center gap-2"><span class="text-xl">💔</span><span class="text-rose-400">被踢出去了 (Evicted)</span></div>
+                <div class="flex items-center gap-2"><span class="text-xl">😢</span><span class="text-slate-500">没找到 (Cache Miss: -1)</span></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+var steps = [], currentStepIndex = 0, isPlaying = false, playInterval;
+
+function generateSteps(capacity, ops) {
+    var allSteps = [];
+    var map = {};
+    var headNode = { key: 'HEAD', val: '👸', prev: null, next: null };
+    var tailNode = { key: 'TAIL', val: '👸', prev: null, next: null };
+    headNode.next = tailNode;
+    tailNode.prev = headNode;
+    var size = 0;
+
+    function removeNode(node) {
+        node.prev.next = node.next;
+        node.next.prev = node.prev;
+    }
+    function insertAfterHead(node) {
+        node.next = headNode.next;
+        node.prev = headNode;
+        headNode.next.prev = node;
+        headNode.next = node;
+    }
+    function snapshot() {
+        var list = [];
+        var cur = headNode;
+        while (cur) {
+            list.push({ key: cur.key, val: cur.val, isSentinel: cur.key === 'HEAD' || cur.key === 'TAIL' });
+            cur = cur.next;
+        }
+        var mapKeys = [];
+        for (var k in map) {
+            if (map.hasOwnProperty(k)) mapKeys.push({ key: k, val: map[k].val });
+        }
+        return { list: list, mapEntries: mapKeys, size: size, capacity: capacity };
+    }
+    function desc(html) { return html; }
+
+    allSteps.push({
+        role: 'init', snap: snapshot(), op: null, returnVal: null,
+        activeKey: null, evictedKey: null, promotedKey: null,
+        description: desc('<div class="cn-font">👸 女神发了条朋友圈，舔狗们蠢蠢欲动！排队区容量 = <strong class="text-pink-400">' + capacity + '</strong>。<br>HEAD 和 TAIL 是哨兵节点（女神的左右护法），中间还没人敢上。</div><div class="text-sm opacity-50 mt-1 font-normal">Cache initialized. Capacity=' + capacity + '. HEAD↔TAIL sentinels ready.</div>')
+    });
+
+    for (var i = 0; i < ops.length; i++) {
+        var op = ops[i];
+        if (op.type === 'put') {
+            var key = op.key, val = op.val;
+            if (map.hasOwnProperty(key)) {
+                var en = map[key], oldVal = en.val;
+                removeNode(en); en.val = val; insertAfterHead(en);
+                allSteps.push({
+                    role: 'put-update', snap: snapshot(), op: 'put(' + key + ',' + val + ')',
+                    returnVal: null, activeKey: String(key), evictedKey: null, promotedKey: String(key),
+                    description: desc('<div class="cn-font">💕 <strong class="text-yellow-400">put(' + key + ',' + val + ')</strong> — 舔狗 <strong class="text-purple-400">' + key + '</strong> 又来找女神了！<br>已在队里(旧值=' + oldVal + ')，更新为 <strong class="text-yellow-300">' + val + '</strong>，直接插队到最前面！别的舔狗只能看着 😤</div><div class="text-sm opacity-50 mt-1 font-normal">Key ' + key + ' exists. Update val ' + oldVal + '→' + val + '. Move to front (MRU).</div>')
+                });
+            } else {
+                var nn = { key: String(key), val: val, prev: null, next: null };
+                map[key] = nn; insertAfterHead(nn); size++;
+                if (size > capacity) {
+                    var lru = tailNode.prev, ek = lru.key, ev = lru.val;
+                    removeNode(lru); delete map[ek]; size--;
+                    allSteps.push({
+                        role: 'put-evict', snap: snapshot(), op: 'put(' + key + ',' + val + ')',
+                        returnVal: null, activeKey: String(key), evictedKey: String(ek), promotedKey: null,
+                        description: desc('<div class="cn-font">💔 <strong class="text-yellow-400">put(' + key + ',' + val + ')</strong> — 新舔狗 <strong class="text-purple-400">' + key + '</strong> 来排队！<br>但队伍满了… 队尾的 <strong class="text-rose-400">' + ek + '</strong>(val=' + ev + ') 太久没找女神说话，被无情踢走！😭<br><span class="text-pink-400">女神：下一个～</span></div><div class="text-sm opacity-50 mt-1 font-normal">New key ' + key + '. Full! Evict LRU key=' + ek + '. Insert ' + key + ' at front.</div>')
+                    });
+                } else {
+                    allSteps.push({
+                        role: 'put-new', snap: snapshot(), op: 'put(' + key + ',' + val + ')',
+                        returnVal: null, activeKey: String(key), evictedKey: null, promotedKey: null,
+                        description: desc('<div class="cn-font">🧎 <strong class="text-yellow-400">put(' + key + ',' + val + ')</strong> — 新舔狗 <strong class="text-purple-400">' + key + '</strong> 加入排队！<br>直接插到队头，和女神距离最近！当前排队 <strong class="text-pink-400">' + size + '/' + capacity + '</strong> 人。</div><div class="text-sm opacity-50 mt-1 font-normal">New key ' + key + '=' + val + ' at front. Size=' + size + '/' + capacity + '.</div>')
+                    });
+                }
+            }
+        } else if (op.type === 'get') {
+            var gk = op.key;
+            if (map.hasOwnProperty(gk)) {
+                var gn = map[gk], gv = gn.val;
+                removeNode(gn); insertAfterHead(gn);
+                allSteps.push({
+                    role: 'get-hit', snap: snapshot(), op: 'get(' + gk + ')',
+                    returnVal: gv, activeKey: String(gk), evictedKey: null, promotedKey: String(gk),
+                    description: desc('<div class="cn-font">💕 <strong class="text-cyan-400">get(' + gk + ')</strong> — 女神主动找 <strong class="text-purple-400">' + gk + '</strong> 聊天了！<br>返回 <strong class="text-yellow-400">' + gv + '</strong>，并把 ' + gk + ' 拉到最前面！<br><span class="text-pink-300">其他舔狗：凭什么啊！😤</span></div><div class="text-sm opacity-50 mt-1 font-normal">Cache HIT! get(' + gk + ')=' + gv + '. Move to front.</div>')
+                });
+            } else {
+                allSteps.push({
+                    role: 'get-miss', snap: snapshot(), op: 'get(' + gk + ')',
+                    returnVal: -1, activeKey: null, evictedKey: null, promotedKey: null,
+                    description: desc('<div class="cn-font">😢 <strong class="text-cyan-400">get(' + gk + ')</strong> — 想找 <strong class="text-slate-400">' + gk + '</strong>？<br>女神翻了翻通讯录… <span class="text-rose-400">查无此人！</span>返回 <strong class="text-rose-400">-1</strong>。<br><span class="text-slate-500">你谁啊？我不认识你 🙄</span></div><div class="text-sm opacity-50 mt-1 font-normal">Cache MISS. get(' + gk + ')=-1. Key not found.</div>')
+                });
+            }
+        }
+    }
+
+    var fl = [];
+    var fc = headNode.next;
+    while (fc !== tailNode) { fl.push(fc.key + '=' + fc.val); fc = fc.next; }
+    allSteps.push({
+        role: 'finish', snap: snapshot(), op: null, returnVal: null,
+        activeKey: null, evictedKey: null, promotedKey: null,
+        description: desc('<div class="cn-font">🏆 所有操作完毕！女神的排队区最终状态：<br><strong class="text-pink-400">[' + (fl.length > 0 ? fl.join(' → ') : '空') + ']</strong><br>从最近聊过 → 最久没聊。舔狗们，散了吧 🚶‍♂️</div><div class="text-sm opacity-50 mt-1 font-normal">Done. Final cache: [' + fl.join('→') + ']. MRU→LRU.</div>')
+    });
+
+    return allSteps;
+}
+
+function render() {
+    var state = steps[currentStepIndex];
+    renderLinkedList(state);
+    renderHashMap(state);
+    renderOpsList(state);
+    updateStats(state);
+    spawnFx(state);
+    lucide.createIcons();
+}
+
+function renderLinkedList(state) {
+    var c = document.getElementById('linkedListContainer');
+    c.textContent = '';
+    var list = state.snap.list;
+    for (var i = 0; i < list.length; i++) {
+        var node = list[i];
+        if (i > 0) {
+            var arrow = document.createElement('div');
+            arrow.className = 'arrow-right flex flex-col items-center';
+            if (state.activeKey && (String(list[i].key) === state.activeKey || String(list[i-1].key) === state.activeKey))
+                arrow.className += ' active-arrow';
+            var al = document.createElement('div');
+            al.textContent = '⇄'; al.style.fontSize = '16px';
+            arrow.appendChild(al);
+            c.appendChild(arrow);
+        }
+        var div = document.createElement('div');
+        var cls = 'll-node';
+        if (node.isSentinel) { cls += ' sentinel'; }
+        else {
+            cls += ' data-node';
+            if (String(node.key) === state.activeKey) cls += ' active-node slide-in';
+            if (String(node.key) === state.evictedKey) cls += ' evicted-node evict-shake';
+            if (String(node.key) === state.promotedKey) cls += ' promoted-node promote-glow';
+        }
+        div.className = cls;
+        var emoji;
+        if (node.isSentinel) { emoji = node.key === 'HEAD' ? '👸' : '🚪'; }
+        else if (String(node.key) === state.evictedKey) { emoji = '💔'; }
+        else if (String(node.key) === state.promotedKey) { emoji = '💕'; }
+        else if (String(node.key) === state.activeKey) { emoji = '🧎'; }
+        else { emoji = (list.length - 1 - i) <= 1 ? '🥶' : '🧎'; }
+
+        var ed = document.createElement('div');
+        ed.className = 'text-xl mb-1'; ed.textContent = emoji;
+        div.appendChild(ed);
+
+        if (node.isSentinel) {
+            var ld = document.createElement('div');
+            ld.className = 'text-[10px] font-bold'; ld.style.color = '#ec4899';
+            ld.textContent = node.key; div.appendChild(ld);
+        } else {
+            var kd = document.createElement('div');
+            kd.className = 'text-xs font-bold';
+            var kc = '#a855f7';
+            if (String(node.key) === state.activeKey) kc = '#ec4899';
+            if (String(node.key) === state.promotedKey) kc = '#fbbf24';
+            if (String(node.key) === state.evictedKey) kc = '#f43f5e';
+            kd.style.color = kc; kd.textContent = 'k=' + node.key;
+            div.appendChild(kd);
+            var vd = document.createElement('div');
+            vd.className = 'text-[10px] text-slate-400'; vd.textContent = 'v=' + node.val;
+            div.appendChild(vd);
+        }
+        c.appendChild(div);
+    }
+}
+
+function renderHashMap(state) {
+    var c = document.getElementById('hashMapContainer');
+    c.textContent = '';
+    var entries = state.snap.mapEntries;
+    if (entries.length === 0) {
+        var e = document.createElement('div');
+        e.className = 'text-slate-600 text-xs cn-font';
+        e.textContent = '通讯录是空的... 还没有舔狗来排队';
+        c.appendChild(e); return;
+    }
+    for (var i = 0; i < entries.length; i++) {
+        var entry = entries[i];
+        var b = document.createElement('div');
+        var cls = 'px-3 py-2 rounded-lg text-xs font-mono flex items-center gap-2 transition-all';
+        if (String(entry.key) === state.activeKey || String(entry.key) === state.promotedKey)
+            cls += ' bg-pink-900/40 border border-pink-500/50';
+        else cls += ' bg-purple-900/20 border border-purple-700/30';
+        b.className = cls;
+
+        var ks = document.createElement('span'); ks.className = 'text-purple-300 font-bold'; ks.textContent = entry.key; b.appendChild(ks);
+        var as = document.createElement('span'); as.className = 'text-slate-600'; as.textContent = '→'; b.appendChild(as);
+        var vs = document.createElement('span'); vs.className = 'text-pink-300'; vs.textContent = entry.val; b.appendChild(vs);
+        var ps = document.createElement('span'); ps.className = 'text-slate-600 text-[9px]'; ps.textContent = '📍node'; b.appendChild(ps);
+        c.appendChild(b);
+    }
+}
+
+function renderOpsList(state) {
+    var c = document.getElementById('opsListContainer');
+    c.textContent = '';
+    for (var i = 0; i < steps.length; i++) {
+        var s = steps[i];
+        if (!s.op) continue;
+        var row = document.createElement('div');
+        var cls = 'flex items-center gap-2 px-2 py-1 rounded text-xs font-mono transition-all';
+        if (i < currentStepIndex) cls += ' opacity-40';
+        else if (i === currentStepIndex) cls += ' bg-pink-900/40 border border-pink-500/50';
+        row.className = cls;
+        var emoji = s.role === 'get-hit' ? '💕' : s.role === 'get-miss' ? '😢' : s.role === 'put-evict' ? '💔' : s.role === 'put-update' ? '🔄' : '🧎';
+        var es = document.createElement('span'); es.textContent = emoji; row.appendChild(es);
+        var os = document.createElement('span'); os.className = 'text-slate-300'; os.textContent = s.op; row.appendChild(os);
+        if (s.returnVal !== null && s.returnVal !== undefined) {
+            var rs = document.createElement('span'); rs.className = 'ml-auto';
+            rs.style.color = s.returnVal === -1 ? '#f43f5e' : '#4ade80';
+            rs.textContent = '→ ' + s.returnVal; row.appendChild(rs);
+        }
+        c.appendChild(row);
+    }
+}
+
+function updateStats(state) {
+    document.getElementById('sizeDisplay').textContent = state.snap.size;
+    document.getElementById('capDisplay').textContent = state.snap.capacity;
+    document.getElementById('stepCounter').textContent = (currentStepIndex + 1) + ' / ' + steps.length;
+    document.getElementById('opDisplay').textContent = state.op || '—';
+    var re = document.getElementById('returnDisplay');
+    if (state.returnVal !== null && state.returnVal !== undefined) {
+        re.textContent = state.returnVal;
+        re.style.color = state.returnVal === -1 ? '#f43f5e' : '#4ade80';
+    } else { re.textContent = '—'; re.style.color = '#a78bfa'; }
+    var ee = document.getElementById('explanationText');
+    ee.className = 'text-base leading-relaxed text-slate-200 font-bold log-in';
+    // All description HTML is built from integer algorithm state only
+    ee.innerHTML = state.description;
+    void ee.offsetWidth;
+}
+
+function spawnFx(state) {
+    var layer = document.getElementById('fxLayer');
+    layer.textContent = '';
+    var emojis, i, span;
+    if (state.role === 'put-evict') {
+        emojis = ['💔', '😭', '👋', '🥀'];
+        for (i = 0; i < emojis.length; i++) {
+            span = document.createElement('div'); span.textContent = emojis[i];
+            span.className = 'absolute text-2xl cry-fall';
+            span.style.right = (20 + i * 30) + 'px'; span.style.top = '30px';
+            span.style.animationDelay = (i * 150) + 'ms'; layer.appendChild(span);
+        }
+    } else if (state.role === 'get-hit' || state.role === 'put-update') {
+        emojis = ['💕', '✨', '💖', '🌟', '😍'];
+        for (i = 0; i < emojis.length; i++) {
+            span = document.createElement('div'); span.textContent = emojis[i];
+            span.className = 'absolute text-xl heart-float';
+            span.style.left = (40 + i * 35) + 'px'; span.style.top = '20px';
+            span.style.animationDelay = (i * 120) + 'ms'; layer.appendChild(span);
+        }
+    } else if (state.role === 'get-miss') {
+        emojis = ['😢', '❓', '🙄', '❌'];
+        for (i = 0; i < emojis.length; i++) {
+            span = document.createElement('div'); span.textContent = emojis[i];
+            span.className = 'absolute text-xl emoji-pop';
+            span.style.left = (60 + i * 40) + 'px'; span.style.top = '30px';
+            span.style.animationDelay = (i * 100) + 'ms'; layer.appendChild(span);
+        }
+    } else if (state.role === 'finish') {
+        emojis = ['🏆', '👸', '💤', '🎉', '✨'];
+        for (i = 0; i < emojis.length; i++) {
+            span = document.createElement('div'); span.textContent = emojis[i];
+            span.className = 'absolute text-3xl emoji-pop';
+            span.style.left = (80 + i * 40) + 'px'; span.style.top = '40px';
+            span.style.animationDelay = (i * 120) + 'ms'; layer.appendChild(span);
+        }
+    }
+}
+
+function doStep(dir) {
+    var next = currentStepIndex + dir;
+    if (next >= 0 && next < steps.length) { currentStepIndex = next; render(); }
+    else if (next >= steps.length) stop();
+}
+function togglePlay() { isPlaying ? stop() : start(); }
+function start() {
+    if (currentStepIndex >= steps.length - 1) currentStepIndex = 0;
+    isPlaying = true;
+    var btn = document.getElementById('playPauseBtn');
+    btn.textContent = '';
+    var ic = document.createElement('i'); ic.setAttribute('data-lucide', 'pause'); ic.className = 'w-7 h-7 fill-current';
+    btn.appendChild(ic); lucide.createIcons();
+    playInterval = setInterval(function() { doStep(1); }, 2000);
+}
+function stop() {
+    isPlaying = false; clearInterval(playInterval);
+    var btn = document.getElementById('playPauseBtn');
+    btn.textContent = '';
+    var ic = document.createElement('i'); ic.setAttribute('data-lucide', 'play'); ic.className = 'w-7 h-7 fill-current';
+    btn.appendChild(ic); lucide.createIcons();
+}
+
+function parseOps(str) {
+    var result = [], parts = str.split(/,(?=\s*(?:get|put)\()/);
+    for (var i = 0; i < parts.length; i++) {
+        var s = parts[i].trim();
+        var pm = s.match(/put\((\d+)\s*,\s*(\d+)\)/);
+        var gm = s.match(/get\((\d+)\)/);
+        if (pm) result.push({ type: 'put', key: parseInt(pm[1]), val: parseInt(pm[2]) });
+        else if (gm) result.push({ type: 'get', key: parseInt(gm[1]) });
+    }
+    return result;
+}
+
+function resetViz() {
+    stop();
+    var cap = Math.max(1, parseInt(document.getElementById('capInput').value) || 2);
+    var ops = parseOps(document.getElementById('opsInput').value);
+    steps = generateSteps(cap, ops);
+    currentStepIndex = 0;
+    render();
+}
+
+window.onload = resetViz;
+window.onresize = function() { render(); };
+</script>
+</body>
+</html>
